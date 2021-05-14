@@ -248,6 +248,7 @@ void *alog_persist_thread(void *arg)
         ALOG_DEBUG("持久化线程处于节点[%d]" , node->index);
         /* 1. 当前节点未写满，则等待1s或被唤醒 , 如果检查到结束标志则直接进行持久化操作 */
         if ( g_alog_ctx->closeFlag != 1 && node->usedFlag != ALOG_NODE_FULL ){
+
             ALOG_DEBUG("当前节点不满");
             gettimeofday(&timeval , NULL);
             abstime.tv_sec = timeval.tv_sec + g_alog_ctx->l_shm->flushInterval;
@@ -318,33 +319,112 @@ int alog_persist( char *regname , char *cstname , alog_bufNode_t *node)
     if ( cfg == NULL ){
         return -1;
     }
-    char filepath[ALOG_FILEPATH_LEN];
-    memset(filepath , 0x00 , sizeof(filepath));
+    char filePath[ALOG_FILEPATH_LEN];
+    memset(filePath , 0x00 , sizeof(filePath));
 
-    /* 日志名格式REGNAME.CSTNAME.YYYYMMDD */
+    /* 日志名格式 */
     alog_update_timer();
+    getFileNameFromFormat( ALOG_CURFILEFORMAT , cfg , regname , cstname , filePath);
+    /*
     sprintf( filepath , "%s/%s.%s.%s" , cfg->filePath , regname , cstname , g_alog_ctx->timer.date);
-    FILE *fp = fopen( filepath , "a+");
+    */
+    FILE *fp = fopen( filePath , "a+");
     fwrite(node->content , node->offset , 1 , fp);
 
     /* 判断文件大小 */
     long filesize = ftell(fp);
     if ( filesize > cfg->maxSize*1024*1024 ){
-        char bak_filepath[ALOG_FILEPATH_LEN];
+        char bak_filePath[ALOG_FILEPATH_LEN];
         char command[ALOG_COMMAND_LEN];
-        memset(bak_filepath , 0x00 , sizeof(bak_filepath));
+        memset(bak_filePath , 0x00 , sizeof(bak_filePath));
         memset(command , 0x00 , sizeof(command));
+        getFileNameFromFormat( ALOG_BAKFILEFORMAT , cfg , regname , cstname , bak_filePath);
+        /*
         sprintf( bak_filepath , "%s.%02d%02d%02d%06d" ,\
                 filepath ,\
                 g_alog_ctx->timer.tmst.tm_hour,\
                 g_alog_ctx->timer.tmst.tm_min,\
                 g_alog_ctx->timer.tmst.tm_sec,\
                 g_alog_ctx->timer.tv.tv_usec);
-        sprintf( command , "mv %s %s" , filepath , bak_filepath);
+        */
+        sprintf( command , "mv %s %s" , filePath , bak_filePath);
         system( command );
     }
     fclose(fp);
     return ALOGOK;
+}
+/*
+ * 获取当前文件名/备份文件名
+ * */
+void getFileNameFromFormat( int type  , alog_regCfg_t *cfg , char *regname , char *cstname , char filePath[ALOG_FILEPATH_LEN] )
+{
+    char        *p =  NULL;
+    int         i = 0;
+    int         len = 0;
+
+    strcpy( filePath , cfg->filePath );
+    i = strlen(cfg->filePath);
+    filePath[i++] = '/';
+
+    if ( type == ALOG_CURFILEFORMAT ){
+        p = g_alog_ctx->l_shm->curFileNameFmt;
+    } else if ( type == ALOG_BAKFILEFORMAT ){
+        p = g_alog_ctx->l_shm->bakFileNameFmt;
+    }
+    len = strlen(p);
+
+    for ( ; ; ) {
+        if ( *p == '\0' ){
+            break;
+        } else if ( *p == '%' ){
+            p++;
+            switch( *p ){
+                case 'Y':
+                    memcpy( filePath+i , g_alog_ctx->timer.date , 4);
+                    i += 4;
+                    break;
+                case 'M':
+                    memcpy( filePath+i , g_alog_ctx->timer.date+4 , 2);
+                    i += 2;
+                    break;
+                case 'D':
+                    memcpy( filePath+i , g_alog_ctx->timer.date+6 , 2);
+                    i += 2;
+                    break;
+                case 'h':
+                    memcpy( filePath+i , g_alog_ctx->timer.time , 2);
+                    i += 2;
+                    break;
+                case 'm':
+                    memcpy( filePath+i , g_alog_ctx->timer.time+3 , 2);
+                    i += 2;
+                    break;
+                case 's':
+                    memcpy( filePath+i , g_alog_ctx->timer.time+6 , 2);
+                    i += 2;
+                    break;
+                case 'R':
+                    memcpy( filePath+i , regname , strlen(regname));
+                    i += strlen(regname);
+                    break;
+                case 'C':
+                    memcpy( filePath+i , cstname , strlen(cstname));
+                    i += strlen(cstname);
+                    break;
+                case 'T':
+                    i = i + sprintf( filePath+i , "%d" , getpid());
+                    break;
+                default:
+                    filePath[i] = *p;
+                    i += 1;
+            }
+        } else {
+            filePath[i] = *p;
+            i ++;
+        }
+        p ++;
+    }
+    return ;
 }
 /*
  * 读取中括号内容
@@ -485,6 +565,7 @@ alog_shm_t *alog_loadCfg( char *filepath )
     l_shm->singleBlockSize = ALOG_DEF_SINGLEBLOCKSIZE;
     l_shm->flushInterval = ALOG_DEF_FLUSHINTERVAL; 
     l_shm->checkInterval = ALOG_DEF_CHECKINTERVAL; 
+
     /* 从环境变量加载 */
     if ( getenv("ALOG_MAXMEMORYSIZE") ){
         temp = atoi(getenv("ALOG_MAXMEMORYSIZE"));
@@ -510,5 +591,19 @@ alog_shm_t *alog_loadCfg( char *filepath )
             l_shm->checkInterval = temp;
         }
     }
+    char *p;
+    p = getenv("ALOG_LOGFILEFORMAT");
+    if ( p == NULL || strlen(p)==0 ){
+        strcpy( l_shm->curFileNameFmt , "%R.%C.%Y%M%D");
+    } else {
+        strcpy( l_shm->curFileNameFmt , p );
+    }
+    p = getenv("ALOG_BAKFILEFORMAT");
+    if ( p == NULL || strlen(p)==0 ){
+        strcpy( l_shm->bakFileNameFmt , "%R.%C.%Y%M%D.%h%m%s");
+    } else {
+        strcpy( l_shm->bakFileNameFmt , p );
+    }
+    
     return l_shm;
 } 

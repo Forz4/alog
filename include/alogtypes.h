@@ -44,6 +44,8 @@
 #define ALOG_COMMAND_LEN            600
 #define ALOG_REG_NUM                20
 #define ALOG_BUFFER_NUM             20
+#define ALOG_CURFILEFORMAT          1
+#define ALOG_BAKFILEFORMAT          2
 
 /* 日志类型定义 */
 enum alog_level{
@@ -97,7 +99,7 @@ typedef struct alog_regCfg{
     char                regName[ALOG_REGNAME_LEN+1];            /* 注册名                           */
     short               level;                                  /* 日志级别                         */
     int                 maxSize;                                /* 单个文件大小                     */
-    char                format[ALOG_FORMAT_LEN+1];                            /* 打印格式                         */
+    char                format[ALOG_FORMAT_LEN+1];              /* 打印格式                         */
     char                filePath[ALOG_FILEPATH_LEN+1];          /* 日志文件路径                     */
 } alog_regCfg_t;
 
@@ -122,6 +124,8 @@ typedef struct alog_shm{
     int                 singleBlockSize;                        /* 单个缓存日志块数组大小(KB)       */
     int                 flushInterval;                          /* 持久化线程写日志间隔             */
     int                 checkInterval;                          /* 配置更新检查间隔                 */
+    char                curFileNameFmt[ALOG_FILEPATH_LEN+1];    /* 当前日志文件名模板               */
+    char                bakFileNameFmt[ALOG_FILEPATH_LEN+1];    /* 备份日志文件名模板               */
     time_t              updTime;                                /* 上次更新时间                     */
     int                 regNum;                                 /* 配置项个数                       */
     struct alog_regCfg  regCfgs[ALOG_REG_NUM];                  /* 配置项数组                       */

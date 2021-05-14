@@ -109,6 +109,8 @@ int alogcmd_print()
     printf("单个日志块大小:         %d(KB)\n",g_shm->singleBlockSize);
     printf("持久化线程写入间隔:     %d(s)\n",g_shm->flushInterval);
     printf("配置更新检查间隔:       %d(s)\n",g_shm->checkInterval);
+    printf("当前日志文件名模板:     %s\n",g_shm->curFileNameFmt);
+    printf("备份日志文件名模板:     %s\n",g_shm->bakFileNameFmt);
     printf("更新时间戳:             %4d%02d%02d %02d:%02d:%02d\n",tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour,tm->tm_min,tm->tm_sec);
     printf("配置项个数:             %d\n",g_shm->regNum);
     printf("=======================================================================================================\n");
