@@ -87,8 +87,8 @@ int alogcmd_load(char *type)
 int alogcmd_print()
 {
     int shmkey = atoi(ENV_ALOG_SHMKEY);
-    char *format_head = "|%-20s|%-8s|%-11s|%-8s|%-50s|\n";
-    char *format_body = "|%-20s|%-8s|%-11d|%-8s|%-50s|\n";
+    char *format_head = "|%-20s|%-8s|%-11s|%-8s|%-40s|%-40s|\n";
+    char *format_body = "|%-20s|%-8s|%-11d|%-8s|%-40s|%-40s|\n";
 
     int shmid = shmget( shmkey , sizeof(alog_shm_t) , 0);
     if ( shmid < 0 ){
@@ -102,26 +102,25 @@ int alogcmd_print()
     }
 
     struct tm *tm = localtime(&(g_shm->updTime));
-    printf("ALOG_HOME目录:          %s\n",ENV_ALOG_HOME);
-    printf("共享内存key值:          %d\n",g_shm->shmKey);
-    printf("共享内存id:             %d\n",g_shm->shmId);
+    printf("ALOG_HOME Directory:    %s\n",ENV_ALOG_HOME);
+    printf("share memory key   :    %d\n",g_shm->shmKey);
+    printf("share memory id    :    %d\n",g_shm->shmId);
     printf("缓冲区最大使用量:       %d(MB)\n",g_shm->maxMemorySize);
     printf("单个日志块大小:         %d(KB)\n",g_shm->singleBlockSize);
     printf("持久化线程写入间隔:     %d(s)\n",g_shm->flushInterval);
     printf("配置更新检查间隔:       %d(s)\n",g_shm->checkInterval);
-    printf("当前日志文件名模板:     %s\n",g_shm->curFileNameFmt);
-    printf("备份日志文件名模板:     %s\n",g_shm->bakFileNameFmt);
     printf("更新时间戳:             %4d%02d%02d %02d:%02d:%02d\n",tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour,tm->tm_min,tm->tm_sec);
     printf("配置项个数:             %d\n",g_shm->regNum);
-    printf("=======================================================================================================\n");
+    printf("======================================================================================================================================\n");
     printf( format_head ,\
             "regname",\
             "level",\
             "maxsize(MB)",\
             "format",\
-            "filepath");
+            "curfilepath",\
+            "bakfilepath");
     int i = 0;
-    printf("=======================================================================================================\n");
+    printf("======================================================================================================================================\n");
     for ( i = 0 ; i < g_shm->regNum ; i ++ ){
         alog_regCfg_t *cfg = &(g_shm->regCfgs[i]);
         printf( format_body ,\
@@ -129,9 +128,10 @@ int alogcmd_print()
             alog_level_string[cfg->level],\
             cfg->maxSize,\
             cfg->format,\
-            cfg->filePath);
+            cfg->curFilePath_r,\
+            cfg->bakFilePath_r);
     }
-    printf("=======================================================================================================\n");
+    printf("======================================================================================================================================\n");
     return 0;
 }
 /* 

@@ -79,6 +79,7 @@ typedef struct alog_bufNode{
     int                 index;                                  /* 内存快序号                       */
     char                usedFlag;                               /* 使用标志                         */
     char                *content;                               /* 日志存放大数组                   */
+    int                 len;                                    /* 大数组长度                       */
     int                 offset;                                 /* 当前偏移量                       */
     struct alog_bufNode *next;                                  /* 指向下一个节点                   */
     struct alog_bufNode *prev;                                  /* 指向上一个节点                   */
@@ -100,7 +101,10 @@ typedef struct alog_regCfg{
     short               level;                                  /* 日志级别                         */
     int                 maxSize;                                /* 单个文件大小                     */
     char                format[ALOG_FORMAT_LEN+1];              /* 打印格式                         */
-    char                filePath[ALOG_FILEPATH_LEN+1];          /* 日志文件路径                     */
+    char                curFilePath_r[ALOG_FILEPATH_LEN+1];     /* 当前日志文件路径原始             */
+    char                curFilePath[ALOG_FILEPATH_LEN+1];       /* 当前日志文件路径                 */
+    char                bakFilePath_r[ALOG_FILEPATH_LEN+1];     /* 备份日志文件路径原始             */
+    char                bakFilePath[ALOG_FILEPATH_LEN+1];       /* 备份日志文件路径                 */
 } alog_regCfg_t;
 
 /* 线程上下文 */
@@ -124,8 +128,6 @@ typedef struct alog_shm{
     int                 singleBlockSize;                        /* 单个缓存日志块数组大小(KB)       */
     int                 flushInterval;                          /* 持久化线程写日志间隔             */
     int                 checkInterval;                          /* 配置更新检查间隔                 */
-    char                curFileNameFmt[ALOG_FILEPATH_LEN+1];    /* 当前日志文件名模板               */
-    char                bakFileNameFmt[ALOG_FILEPATH_LEN+1];    /* 备份日志文件名模板               */
     time_t              updTime;                                /* 上次更新时间                     */
     int                 regNum;                                 /* 配置项个数                       */
     struct alog_regCfg  regCfgs[ALOG_REG_NUM];                  /* 配置项数组                       */

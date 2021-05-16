@@ -280,7 +280,8 @@ offset += snprintf( temp+offset , max - offset , "------------------------------
     /* 计算当前node是否有足够空间存放日志 */
     alog_bufNode_t  *node = buffer->prodPtr;
 
-    if (node->usedFlag == ALOG_NODE_FULL || node->offset + offset > g_alog_ctx->l_shm->singleBlockSize*1024){ 
+    /*if (node->usedFlag == ALOG_NODE_FULL || node->offset + offset > g_alog_ctx->l_shm->singleBlockSize*1024){ */
+    if (node->usedFlag == ALOG_NODE_FULL || node->offset + offset > node->len ){ 
 
         ALOG_DEBUG("当前节点[%d]空间不足,修改节点状态为FULL",node->index);
         node->usedFlag = ALOG_NODE_FULL;
@@ -314,6 +315,7 @@ offset += snprintf( temp+offset , max - offset , "------------------------------
                 tempnode->next = node->next;
                 tempnode->prev = node;
                 tempnode->offset = 0;
+                tempnode->len = g_alog_ctx->l_shm->singleBlockSize*1024;
                 tempnode->usedFlag = ALOG_NODE_FREE;
 
                 node->next->prev = tempnode;

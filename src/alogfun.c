@@ -28,6 +28,7 @@ alog_buffer_t *getBufferByName( char *regname , char *cstname)
         return NULL;
     }
     int i = 0;
+    ALOG_DEBUG( "开始遍历缓冲区数组");
     for ( i = 0 ; i < g_alog_ctx->bufferNum ; i ++){
     ALOG_DEBUG( "ctx->buffers[%d],regname[%s],cstname[%s]",i,g_alog_ctx->buffers[i].regName,g_alog_ctx->buffers[i].cstName);
         if ( strcmp( g_alog_ctx->buffers[i].regName , regname ) == 0 && \
@@ -43,6 +44,7 @@ alog_buffer_t *getBufferByName( char *regname , char *cstname)
                 strcpy( arg->regName , regname);
                 strcpy( arg->cstName , cstname);
                 pthread_create(&(g_alog_ctx->buffers[i].consTid), NULL, alog_persist_thread, (void *)arg );
+                free(arg);
                 ALOG_DEBUG("重新启动持久化线程");
             }
             if ( pthread_kill(g_alog_ctx->updTid,0) ){
@@ -50,6 +52,7 @@ alog_buffer_t *getBufferByName( char *regname , char *cstname)
                 pthread_create(&(g_alog_ctx->updTid), NULL, alog_update_thread, NULL );
                 ALOG_DEBUG("重新启动持久化更新线程");
             }
+            ALOG_DEBUG( "getBufferByName完成");
             return &(g_alog_ctx->buffers[i]);
         }
     }
@@ -123,6 +126,7 @@ int alog_addBuffer( char *regname  , char *cstname , alog_buffer_t **retbuffer)
     }
 
     /* 新增缓冲区*/
+    ALOG_DEBUG("开始新增缓冲区 regname[%s] cstname[%s]" , regname , cstname);
     buffer = &(g_alog_ctx->buffers[g_alog_ctx->bufferNum]);
     g_alog_ctx->bufferNum ++;
     strncpy( buffer->regName , regname , sizeof(buffer->regName) );
@@ -142,7 +146,8 @@ int alog_addBuffer( char *regname  , char *cstname , alog_buffer_t **retbuffer)
 
     node->index = buffer->nodeNum;
     node->usedFlag = ALOG_NODE_FREE;
-    node->content = (char *)malloc(g_alog_ctx->l_shm->singleBlockSize*1024);
+    node->len = g_alog_ctx->l_shm->singleBlockSize*1024;
+    node->content = (char *)malloc(node->len);
     if( node->content == NULL ){
         ALOG_DEBUG("malloc 失败");
         return ALOGERR_MALLOC_FAIL;
@@ -207,7 +212,7 @@ void *alog_update_thread(void *arg)
  * */
 void *alog_persist_thread(void *arg)
 {
-    ALOG_DEBUG("进入 alog_persist_thread 函数");
+    ALOG_DEBUG("启动持久化线程");
 
     /* 获取参数 */
     alog_persist_arg_t  *myarg = ( alog_persist_arg_t *)arg;
@@ -239,6 +244,7 @@ void *alog_persist_thread(void *arg)
         return NULL;
     }
     alog_bufNode_t      *node = NULL;
+    alog_bufNode_t      *node_start = NULL;
     struct timespec     abstime;
     struct timeval      timeval;
     int                 ret = 0;
@@ -249,7 +255,7 @@ void *alog_persist_thread(void *arg)
         /* 1. 当前节点未写满，则等待1s或被唤醒 , 如果检查到结束标志则直接进行持久化操作 */
         if ( g_alog_ctx->closeFlag != 1 && node->usedFlag != ALOG_NODE_FULL ){
 
-            ALOG_DEBUG("当前节点不满");
+            ALOG_DEBUG("当前节点[%d]不为FULL" , node->index);
             gettimeofday(&timeval , NULL);
             abstime.tv_sec = timeval.tv_sec + g_alog_ctx->l_shm->flushInterval;
             abstime.tv_nsec =  timeval.tv_usec * 1000;
@@ -259,8 +265,9 @@ void *alog_persist_thread(void *arg)
             /* 2. 超时或者被唤醒，尝试进行持久化 */
         }
         /* 3. 再次判断节点状态，如仍为空则解锁重试 */
+        ALOG_DEBUG("再次检查节点[%d]" , node->index);
         if ( node->usedFlag == ALOG_NODE_FREE ){
-            ALOG_DEBUG("当前节点为空");
+            ALOG_DEBUG("节点[%d]状态为FREE" , node->index);
             alog_unlock();
             /* 当前节点为空且结束标志为1时退出线程 */
             if ( g_alog_ctx->closeFlag == 1 ){
@@ -271,30 +278,63 @@ void *alog_persist_thread(void *arg)
                 continue;
             }
         }
-        /* 4. 如节点中有日志，则将节点状态设置为FULL，并开始持久化操作 */
-
-        ALOG_DEBUG("设置节点[%d]状态为FULL",node->index);
-        node->usedFlag = ALOG_NODE_FULL;
+        /* 4. 如当前节点中有日志，则循环将所有有日志的节点状态设置为FULL，并开始持久化操作 */
+        ALOG_DEBUG("节点[%d]状态不为FREE，准备进行持久化操作" , node->index);
+        int i = 0 ;
+        int count = 0;
+        node_start = node;
+        ALOG_DEBUG("开始遍历所有[%d]个节点，查找所有有日志的节点" , buffer->nodeNum);
+        for ( i = 0 ; i < buffer->nodeNum ; i ++){
+            ALOG_DEBUG("检查节点[%d]" , node->index);
+            if ( node->usedFlag == ALOG_NODE_USED ){
+                ALOG_DEBUG("节点[%d]状态为USED" , node->index);
+                node->usedFlag = ALOG_NODE_FULL;
+                ALOG_DEBUG("修改节点[%d]状态为FULL并退出" , node->index);
+                count ++;
+                break;
+            } else if ( node->usedFlag == ALOG_NODE_FULL ){
+                ALOG_DEBUG("节点[%d]状态为FULL" , node->index);
+                count ++;
+                node = node->next;
+                ALOG_DEBUG("继续遍历,此时count为[%d]",count);
+                continue;
+            } else if ( node->usedFlag == ALOG_NODE_FREE ){
+                ALOG_DEBUG("节点[%d]状态为FREE，直接退出" , node->index);
+                break;
+            }
+        }
         alog_unlock();
 
         /* 5. 将日志块输出到文件 */
-        ALOG_DEBUG("开始对节点[%d]进行持久化",node->index);
-        alog_persist( myregname , mycstname , node );
-        ALOG_DEBUG("节点[%d]持久化完成",node->index);
+        node = node_start;
+        ALOG_DEBUG("从节点[%d]开始共持久化[%d]个节点" , node->index , count);
+        for ( i = 0 ; i < count ; i ++ ){
+            ALOG_DEBUG("开始对节点[%d]进行持久化",node->index);
+            alog_persist( myregname , mycstname , node );
+            ALOG_DEBUG("节点[%d]持久化完成",node->index);
+            node = node->next;
+        }
 
         /* 6. 更新节点状态 */
         alog_lock();
-        ALOG_DEBUG("设置节点[%d]状态为FREE",node->index);
-        node->usedFlag = ALOG_NODE_FREE;
-        memset( node->content , 0x00 ,  g_alog_ctx->l_shm->singleBlockSize*1024 );
-        node->offset = 0;
-        buffer->consPtr = node->next;
+        node = node_start;
+        ALOG_DEBUG("从节点[%d]开始更新[%d]个节点的状态" , node->index , count);
+        for ( i = 0 ; i < count ; i ++ ){
+            ALOG_DEBUG("更新节点[%d]状态为FREE",node->index);
+            node->usedFlag = ALOG_NODE_FREE;
+            memset( node->content , 0x0 ,  node->len );
+            node->offset = 0;
+            node = node->next;
+        }
+        alog_unlock();
+        buffer->consPtr = node;
         ALOG_DEBUG("持久化线程切换到节点[%d]",buffer->consPtr->index);
+/*
         if ( buffer->prodPtr == node ){
             ALOG_DEBUG("生产者线程指针切换到节点[%d]",buffer->consPtr->index);
             buffer->prodPtr = node->next;
         }
-        alog_unlock();
+*/
     }
     /* 持久化线程退出清理工作 */
     ALOG_DEBUG("线程开始退出清理流程");
@@ -325,9 +365,7 @@ int alog_persist( char *regname , char *cstname , alog_bufNode_t *node)
     /* 日志名格式 */
     alog_update_timer();
     getFileNameFromFormat( ALOG_CURFILEFORMAT , cfg , regname , cstname , filePath);
-    /*
-    sprintf( filepath , "%s/%s.%s.%s" , cfg->filePath , regname , cstname , g_alog_ctx->timer.date);
-    */
+
     FILE *fp = fopen( filePath , "a+");
     fwrite(node->content , node->offset , 1 , fp);
 
@@ -339,14 +377,6 @@ int alog_persist( char *regname , char *cstname , alog_bufNode_t *node)
         memset(bak_filePath , 0x00 , sizeof(bak_filePath));
         memset(command , 0x00 , sizeof(command));
         getFileNameFromFormat( ALOG_BAKFILEFORMAT , cfg , regname , cstname , bak_filePath);
-        /*
-        sprintf( bak_filepath , "%s.%02d%02d%02d%06d" ,\
-                filepath ,\
-                g_alog_ctx->timer.tmst.tm_hour,\
-                g_alog_ctx->timer.tmst.tm_min,\
-                g_alog_ctx->timer.tmst.tm_sec,\
-                g_alog_ctx->timer.tv.tv_usec);
-        */
         sprintf( command , "mv %s %s" , filePath , bak_filePath);
         system( command );
     }
@@ -362,14 +392,10 @@ void getFileNameFromFormat( int type  , alog_regCfg_t *cfg , char *regname , cha
     int         i = 0;
     int         len = 0;
 
-    strcpy( filePath , cfg->filePath );
-    i = strlen(cfg->filePath);
-    filePath[i++] = '/';
-
     if ( type == ALOG_CURFILEFORMAT ){
-        p = g_alog_ctx->l_shm->curFileNameFmt;
+        p = cfg->curFilePath;
     } else if ( type == ALOG_BAKFILEFORMAT ){
-        p = g_alog_ctx->l_shm->bakFileNameFmt;
+        p = cfg->bakFilePath;
     }
     len = strlen(p);
 
@@ -536,26 +562,44 @@ alog_shm_t *alog_loadCfg( char *filepath )
         }
         strncpy( cfg->format , buf , 7 );
 
-        /* 日志文件路径 */
+        char cmd[ALOG_COMMAND_LEN];
+        FILE *fp_cmd = NULL;
+        /*  当前日志文件路径 */
         if (get_bracket(line , 5 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
         }
+        strcpy( cfg->curFilePath_r , buf );
         /* 处理环境变量 */
-        char cmd[ALOG_COMMAND_LEN];
         memset( cmd , 0x00 , ALOG_COMMAND_LEN);
         sprintf( cmd , "echo %s" , buf);
-        FILE *fp_cmd = popen( cmd , "r");
+        fp_cmd = popen( cmd , "r");
         if ( fp_cmd ){
-            fgets(cfg->filePath , ALOG_FILEPATH_LEN , fp_cmd);
-            if ( cfg->filePath[strlen(cfg->filePath)-1] == '\n' )
-                cfg->filePath[strlen(cfg->filePath)-1] = '\0';
+            fgets(cfg->curFilePath , ALOG_FILEPATH_LEN , fp_cmd);
+            if ( cfg->curFilePath[strlen(cfg->curFilePath)-1] == '\n' )
+                cfg->curFilePath[strlen(cfg->curFilePath)-1] = '\0';
             pclose(fp_cmd);
         } else {
-            strncpy(cfg->filePath ,buf , ALOG_CFGBUF_LEN);
+            strncpy(cfg->curFilePath ,buf , ALOG_CFGBUF_LEN);
         }
-        if ( access( cfg->filePath , F_OK ) ){
+
+        /*  备份日志文件路径 */
+        if (get_bracket(line , 6 , buf , ALOG_CFGBUF_LEN )){
+            fclose(fp);
             return NULL;
+        }
+        strcpy( cfg->bakFilePath_r , buf );
+        /* 处理环境变量 */
+        memset( cmd , 0x00 , ALOG_COMMAND_LEN);
+        sprintf( cmd , "echo %s" , buf);
+        fp_cmd = popen( cmd , "r");
+        if ( fp_cmd ){
+            fgets(cfg->bakFilePath , ALOG_FILEPATH_LEN , fp_cmd);
+            if ( cfg->bakFilePath[strlen(cfg->bakFilePath)-1] == '\n' )
+                cfg->bakFilePath[strlen(cfg->bakFilePath)-1] = '\0';
+            pclose(fp_cmd);
+        } else {
+            strncpy(cfg->bakFilePath ,buf , ALOG_CFGBUF_LEN);
         }
         l_shm->regNum ++;
     }
@@ -591,19 +635,5 @@ alog_shm_t *alog_loadCfg( char *filepath )
             l_shm->checkInterval = temp;
         }
     }
-    char *p;
-    p = getenv("ALOG_LOGFILEFORMAT");
-    if ( p == NULL || strlen(p)==0 ){
-        strcpy( l_shm->curFileNameFmt , "%R.%C.%Y%M%D");
-    } else {
-        strcpy( l_shm->curFileNameFmt , p );
-    }
-    p = getenv("ALOG_BAKFILEFORMAT");
-    if ( p == NULL || strlen(p)==0 ){
-        strcpy( l_shm->bakFileNameFmt , "%R.%C.%Y%M%D.%h%m%s");
-    } else {
-        strcpy( l_shm->bakFileNameFmt , p );
-    }
-    
     return l_shm;
 } 
