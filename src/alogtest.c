@@ -5,7 +5,7 @@
 int     COUNT = 100;
 int     INTERVAL = 5;
 int     THREADNUM = 1;
-int     LENGTH = 100;
+int     LENGTH = 50;
 char    *message;
 char    REGNAME[20+1] = "TEST0";
 int     MODE = 1;

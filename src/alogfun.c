@@ -336,8 +336,22 @@ void *alog_persist_thread(void *arg)
         }
 */
     }
-    /* 持久化线程退出清理工作 */
+    /* 退出时对文件更名 */
     ALOG_DEBUG("线程开始退出清理流程");
+    alog_regCfg_t *cfg = getRegByName( g_alog_ctx->l_shm , myregname );
+    if ( cfg != NULL ){
+        char filePath[ALOG_FILEPATH_LEN];
+        char bak_filePath[ALOG_FILEPATH_LEN];
+        char command[ALOG_COMMAND_LEN];
+        memset(filePath , 0x00 , sizeof(filePath));
+        memset(bak_filePath , 0x00 , sizeof(bak_filePath));
+        memset(command , 0x00 , sizeof(command));
+        getFileNameFromFormat( ALOG_CURFILEFORMAT , cfg , myregname , mycstname , filePath);
+        getFileNameFromFormat( ALOG_BAKFILEFORMAT , cfg , myregname , mycstname , bak_filePath);
+        sprintf( command , "mv %s %s" , filePath , bak_filePath);
+        system( command );
+    }
+    /* 持久化线程退出清理工作 */
     int i = 0 ;
     alog_bufNode_t  *temp = node;
     for( i = 0 ; i < buffer->nodeNum ; i ++ ){
@@ -613,13 +627,13 @@ alog_shm_t *alog_loadCfg( char *filepath )
     /* 从环境变量加载 */
     if ( getenv("ALOG_MAXMEMORYSIZE") ){
         temp = atoi(getenv("ALOG_MAXMEMORYSIZE"));
-        if ( temp > 0 && temp <= 20 ){
+        if ( temp > 0 && temp <= 4096 ){
             l_shm->maxMemorySize = temp;
         } 
     }
     if ( getenv("ALOG_SINGLEBLOCKSIZE") ){
         temp = atoi(getenv("ALOG_SINGLEBLOCKSIZE"));
-        if ( temp > 0 && temp <= 8 ){
+        if ( temp > 0 && temp <= 1024 ){
             l_shm->singleBlockSize = temp;
         }
     }
