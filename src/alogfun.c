@@ -651,3 +651,36 @@ alog_shm_t *alog_loadCfg( char *filepath )
     }
     return l_shm;
 } 
+/*
+ * 上下文清理
+ * */
+void alog_cleanContext()
+{
+    ALOG_DEBUG("进入alog_cleanContext函数");
+    if ( g_alog_ctx == NULL ){
+        return ;
+    }
+    shmdt(g_alog_ctx->g_shm);
+
+    int i = 0;
+    int j = 0;
+    alog_bufNode_t  *temp;
+    alog_bufNode_t  *node;
+    for ( i = 0 ; i < g_alog_ctx->bufferNum ; i ++ ){
+        ALOG_DEBUG("开始清理第%d个buffer",i);
+        node = g_alog_ctx->buffers[i].prodPtr;;
+        for( j = 0 ; j < g_alog_ctx->buffers[i].nodeNum ; j ++ ){
+            temp = node->next;
+            free(node->content);
+            free(node);
+            node = temp;
+        }
+    }
+    pthread_mutex_destroy(&(g_alog_ctx->mutex));
+    pthread_cond_destroy(&(g_alog_ctx->cond_persist));
+    free(g_alog_ctx->l_shm);
+    free(g_alog_ctx);
+    ALOG_DEBUG("alog_cleanContext完成");
+    return ;
+}
+

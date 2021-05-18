@@ -19,6 +19,7 @@ void *func(void *arg)
 {
     int i = 0 ;
     char cstname[20+1];
+    memset( cstname , 0x00 , sizeof(cstname) );
     sprintf(cstname , "%ld" , (long)getpid() );
     for ( i = 0 ; i < COUNT ; i ++){
         if ( MODE == 1 )
@@ -80,14 +81,22 @@ int main(int argc , char *argv[])
     }
     message[i] = '\0';
 
-    for( i = 0 ; i < THREADNUM ; i ++ ){
-        pthread_create( &tids[i] , NULL , func , 0 );
+    ALOG_INFASC( "TEST0" , "parent" , "" , "ready to start test");
+    ALOG_INFASC( "TEST0" , "parent1" , "" , "ready to start test");
+    ALOG_INFASC( "TEST0" , "parent2" , "" , "ready to start test");
+    int pid = fork();
+    if ( pid == 0  ){
+        //alog_initContext();
+        ALOG_INFASC( "TEST0" , "parent" , "" , "进入子进程");
+        for( i = 0 ; i < THREADNUM ; i ++ ){
+            pthread_create( &tids[i] , NULL , func , 0 );
+        }
+        for( i = 0 ; i < THREADNUM ; i ++ ){
+            pthread_join( tids[i] ,  NULL );
+        }
+    } else if ( pid > 0 ){
+        ALOG_INFASC( "TEST0" , "parent" , "" , "子进程pid  %d" , pid);
     }
-
-    for( i = 0 ; i < THREADNUM ; i ++ ){
-        pthread_join( tids[i] ,  NULL );
-    }
-
     alog_close();
     return 0;
 }

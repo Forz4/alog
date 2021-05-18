@@ -2,6 +2,7 @@ all:	alogcmd libalog.a alogtest
 
 clean:
 	@-rm *.o
+
 #DEBUG = -D ALOG_DEBUG_MODE
 
 INCPATH = -I ../include

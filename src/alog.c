@@ -6,6 +6,7 @@
  * */
 int alog_initContext()
 {
+    alog_cleanContext();
     char            *ENV_SHMKEY = NULL;
     key_t           shmkey;
     int             shmid = 0;
@@ -104,7 +105,7 @@ int alog_close()
     for ( i = 0 ; i < g_alog_ctx->bufferNum ; i ++ ){
         pthread_join(g_alog_ctx->buffers[i].consTid, NULL);
     }
-    pthread_join(g_alog_ctx->updTid, NULL);
+    /*pthread_join(g_alog_ctx->updTid, NULL);*/
 
     ALOG_DEBUG("持久化线程全部退出完毕");
 
