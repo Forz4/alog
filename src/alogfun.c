@@ -333,27 +333,14 @@ void *alog_persist_thread(void *arg)
         }
         alog_unlock();
         buffer->consPtr = node;
-/*
-        if ( buffer->prodPtr == node ){
-            ALOG_DEBUG("生产者线程指针切换到节点[%d]",buffer->consPtr->index);
-            buffer->prodPtr = node->next;
-        }
-*/
     }
 
     /* rename log file before quit */
     alog_regCfg_t *cfg = getRegByName( g_alog_ctx->l_shm , myregname );
-    if ( cfg != NULL ){
-        char filePath[ALOG_FILEPATH_LEN];
-        char bak_filePath[ALOG_FILEPATH_LEN];
-        char command[ALOG_COMMAND_LEN];
-        memset(filePath , 0x00 , sizeof(filePath));
-        memset(bak_filePath , 0x00 , sizeof(bak_filePath));
-        memset(command , 0x00 , sizeof(command));
-        getFileNameFromFormat( ALOG_CURFILEFORMAT , cfg , myregname , mycstname , filePath);
-        getFileNameFromFormat( ALOG_BAKFILEFORMAT , cfg , myregname , mycstname , bak_filePath);
-        sprintf( command , "mv %s %s" , filePath , bak_filePath);
-        system( command );
+    if ( cfg->backupAfterQuit ){
+        if ( cfg != NULL ){
+            alog_backupLog( cfg , myregname , mycstname );
+        }
     }
 
     ALOG_DEBUG("persist thread clean up");
@@ -391,16 +378,27 @@ int alog_persist( char *regname , char *cstname , alog_bufNode_t *node)
     /* judge if file size over limit */
     long filesize = ftell(fp);
     if ( filesize > cfg->maxSize*1024*1024 ){
-        char bak_filePath[ALOG_FILEPATH_LEN];
-        char command[ALOG_COMMAND_LEN];
-        memset(bak_filePath , 0x00 , sizeof(bak_filePath));
-        memset(command , 0x00 , sizeof(command));
-        getFileNameFromFormat( ALOG_BAKFILEFORMAT , cfg , regname , cstname , bak_filePath);
-        sprintf( command , "mv %s %s" , filePath , bak_filePath);
-        system( command );
+        alog_backupLog( cfg , regname , cstname );
     }
     fclose(fp);
     return ALOGOK;
+}
+/*
+ *
+ * */
+void alog_backupLog( alog_regCfg_t *cfg , char *regname , char *cstname)
+{
+    char filePath[ALOG_FILEPATH_LEN];
+    char bak_filePath[ALOG_FILEPATH_LEN];
+    char command[ALOG_COMMAND_LEN];
+    memset(filePath , 0x00 , sizeof(filePath));
+    memset(bak_filePath , 0x00 , sizeof(bak_filePath));
+    memset(command , 0x00 , sizeof(command));
+    getFileNameFromFormat( ALOG_CURFILEFORMAT , cfg , regname , cstname , filePath);
+    getFileNameFromFormat( ALOG_BAKFILEFORMAT , cfg , regname , cstname , bak_filePath);
+    sprintf( command , "mv %s %s" , filePath , bak_filePath);
+    system( command );
+    return ;
 }
 /*
  *  get log file name 
@@ -535,14 +533,14 @@ alog_shm_t *alog_loadCfg( char *filepath )
         
         alog_regCfg_t   *cfg = &(l_shm->regCfgs[l_shm->regNum]);
         
-        /* regname */
+        /* col1 : regname */
         if (get_bracket(line , 1 , buf , ALOG_CFGBUF_LEN)){
             fclose(fp);
             return NULL;
         }
         strncpy( cfg->regName , buf , ALOG_REGNAME_LEN);
 
-        /* log level */
+        /* col2 : log level */
         if (get_bracket(line , 2 , buf , ALOG_CFGBUF_LEN)){
             fclose(fp);
             return NULL;
@@ -565,14 +563,14 @@ alog_shm_t *alog_loadCfg( char *filepath )
             cfg->level = LOGNON;
         }
 
-        /* file size limit */
+        /* col3 : file size limit */
         if (get_bracket(line , 3 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
         }
         cfg->maxSize = atoi(buf);
 
-        /* prefix format */
+        /* col4 : log prefix pattern */
         if (get_bracket(line , 4 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
@@ -582,7 +580,7 @@ alog_shm_t *alog_loadCfg( char *filepath )
         char cmd[ALOG_COMMAND_LEN];
         FILE *fp_cmd = NULL;
 
-        /*  current file name patterm */
+        /* col5 :  current file name patterm */
         if (get_bracket(line , 5 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
@@ -600,7 +598,7 @@ alog_shm_t *alog_loadCfg( char *filepath )
             strncpy(cfg->curFilePath ,buf , ALOG_CFGBUF_LEN);
         }
 
-        /*  backup file name patterm */
+        /*  col6 : backup file name patterm */
         if (get_bracket(line , 6 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
@@ -617,6 +615,14 @@ alog_shm_t *alog_loadCfg( char *filepath )
         } else {
             strncpy(cfg->bakFilePath ,buf , ALOG_CFGBUF_LEN);
         }
+
+        /*  col7 : force backup after quit */
+        if (get_bracket(line , 7 , buf , ALOG_CFGBUF_LEN )){
+            fclose(fp);
+            return NULL;
+        }
+        cfg->backupAfterQuit = atoi(buf);
+
         l_shm->regNum ++;
     }
     fclose(fp);

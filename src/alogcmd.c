@@ -34,7 +34,7 @@ int main(int argc , char **argv)
             printf("ALOG close fail\n");
             exit(1);
         } else {
-            printf("ALOG close succed\n");
+            printf("ALOG close succeed\n");
         }
     } else {
         alogcmd_help();

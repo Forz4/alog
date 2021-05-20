@@ -61,77 +61,78 @@ enum alog_level{
 
 /* timver */
 typedef struct alog_timer{
-    char            date[8+1];                                  /* 日期字符串                       */
-    char            time[8+1];                                  /* 时间字符串 HH:MM:SS              */
-    struct tm       tmst;                                       /* 时间结构体                       */
+    char            date[8+1];                                  /* date string                      */
+    char            time[8+1];                                  /* time sting HH:MM:SS              */
+    struct tm       tmst;                                       /* time struct                      */
     struct timeval  tv;
-    int             sec;                                        /* 实际秒数                         */
+    int             sec;                                        /* second                           */
 } alog_timer_t;
 
 /* persist thread argument */
 typedef struct alog_persist_arg{
-    struct alog_context *ctx;                                   /* 上下文指针                       */
-    char                regName[ALOG_REGNAME_LEN+1];            /* 注册名                           */
-    char                cstName[ALOG_CSTNAME_LEN+1];            /* 识别名                           */
+    struct alog_context *ctx;                                   /* context pointer                  */
+    char                regName[ALOG_REGNAME_LEN+1];            /* regname                          */
+    char                cstName[ALOG_CSTNAME_LEN+1];            /* cstname                          */
 } alog_persist_arg_t;
 
 /* node */
 typedef struct alog_bufNode{
-    int                 index;                                  /* 内存快序号                       */
-    char                usedFlag;                               /* 使用标志                         */
-    char                *content;                               /* 日志存放大数组                   */
-    int                 len;                                    /* 大数组长度                       */
-    int                 offset;                                 /* 当前偏移量                       */
-    struct alog_bufNode *next;                                  /* 指向下一个节点                   */
-    struct alog_bufNode *prev;                                  /* 指向上一个节点                   */
+    int                 index;                                  /* internal node index              */
+    char                usedFlag;                               /*                                  */
+    char                *content;                               /* message string                   */
+    int                 len;                                    /* length of content                */
+    int                 offset;                                 /* current offset                   */
+    struct alog_bufNode *next;                                  /* next node                        */
+    struct alog_bufNode *prev;                                  /* previous node                    */
 } alog_bufNode_t;
 
 /* buffer */
 typedef struct alog_buffer{
-    char                regName[ALOG_REGNAME_LEN+1];            /* 注册名                           */
-    char                cstName[ALOG_CSTNAME_LEN+1];            /* 识别名                           */
-    pthread_t           consTid;                                /* 消费者线程号                     */
-    int                 nodeNum;                                /* 日志块个数                       */
-    struct alog_bufNode *prodPtr;                               /* 生产者指针                       */
-    struct alog_bufNode *consPtr;                               /* 消费者指针                       */
+    char                regName[ALOG_REGNAME_LEN+1];            /* regname                          */
+    char                cstName[ALOG_CSTNAME_LEN+1];            /* cstname                          */
+    pthread_t           consTid;                                /* consumer thread id               */
+    int                 nodeNum;                                /* number of ndoes                  */
+    struct alog_bufNode *prodPtr;                               /* productor pointer                */
+    struct alog_bufNode *consPtr;                               /* consumer pointer                 */
 }alog_buffer_t;
 
 /* regname config */
 typedef struct alog_regCfg{
-    char                regName[ALOG_REGNAME_LEN+1];            /* 注册名                           */
-    short               level;                                  /* 日志级别                         */
-    int                 maxSize;                                /* 单个文件大小                     */
-    char                format[ALOG_FORMAT_LEN+1];              /* 打印格式                         */
-    char                curFilePath_r[ALOG_FILEPATH_LEN+1];     /* 当前日志文件路径原始             */
-    char                curFilePath[ALOG_FILEPATH_LEN+1];       /* 当前日志文件路径                 */
-    char                bakFilePath_r[ALOG_FILEPATH_LEN+1];     /* 备份日志文件路径原始             */
-    char                bakFilePath[ALOG_FILEPATH_LEN+1];       /* 备份日志文件路径                 */
+    char                regName[ALOG_REGNAME_LEN+1];            /* regname                          */
+    short               level;                                  /* log level                        */
+    int                 maxSize;                                /* file size limit                  */
+    char                format[ALOG_FORMAT_LEN+1];              /* log prefix pattern               */
+    char                curFilePath_r[ALOG_FILEPATH_LEN+1];     /* current filepath pattern raw     */
+    char                curFilePath[ALOG_FILEPATH_LEN+1];       /* current filepath pattern real    */
+    char                bakFilePath_r[ALOG_FILEPATH_LEN+1];     /* backup filepath pattern raw      */
+    char                bakFilePath[ALOG_FILEPATH_LEN+1];       /* backup filepath pattern real     */
+    int                 backupAfterQuit;                        /*                                  */
 } alog_regCfg_t;
 
 /* 线程上下文 */
 typedef struct alog_context{
-    pthread_mutex_t     mutex;                                  /* 互斥信号量保护缓冲区读写         */
-    pthread_cond_t      cond_persist;                           /* 条件变量用于唤醒持久化线程       */
-    struct alog_shm     *l_shm;                                 /* 本地配置缓存                     */
-    struct alog_shm     *g_shm;                                 /* 共享内存配置                     */
-    int                 bufferNum;                              /* 缓冲区个数                       */
-    struct alog_buffer  buffers[ALOG_BUFFER_NUM];               /* 缓冲区组                         */
-    struct alog_timer   timer;                                  /* 日期和时间缓冲区                 */
-    int                 closeFlag;                              /* 结束标志                         */
-    pthread_t           updTid;
+    pthread_mutex_t     mutex;                                  /* mutex to protect buffer          */
+    pthread_cond_t      cond_persist;                           /* cond to wake up consumer         */
+    struct alog_shm     *l_shm;                                 /* local shm pointer                */
+    struct alog_shm     *g_shm;                                 /* global share memory pointer      */
+    int                 bufferNum;                              /* number of buffers                */
+    struct alog_buffer  buffers[ALOG_BUFFER_NUM];               /* buffers                          */
+    struct alog_timer   timer;                                  /* timer                            */
+    int                 closeFlag;                              /* close flag                       */
+    pthread_t           updTid;                                 /* thread id of update thread       */
 }alog_context_t;
 
 /* context */
 typedef struct alog_shm{
-    key_t               shmKey;                                 /* 共享内存key值                    */
-    int                 shmId;                                  /* 共享内存id值                     */
-    int                 maxMemorySize;                          /* 缓冲区最大使用内存(MB)           */
-    int                 singleBlockSize;                        /* 单个缓存日志块数组大小(KB)       */
-    int                 flushInterval;                          /* 持久化线程写日志间隔             */
-    int                 checkInterval;                          /* 配置更新检查间隔                 */
-    time_t              updTime;                                /* 上次更新时间                     */
-    int                 regNum;                                 /* 配置项个数                       */
-    struct alog_regCfg  regCfgs[ALOG_REG_NUM];                  /* 配置项数组                       */
+    key_t               shmKey;                                 /* share memory key                 */
+    int                 shmId;                                  /* share memory id                  */
+    int                 maxMemorySize;                          /* max mermory use(MB)              */
+    int                 singleBlockSize;                        /* single Block size(KB)            */
+    int                 flushInterval;                          /* flush interval for persist thread*/
+    int                 checkInterval;                          /* check interval for update thread */
+    time_t              updTime;                                /* update timestamp                 */
+    int                 regNum;                                 /* number of register configs       */
+    struct alog_regCfg  regCfgs[ALOG_REG_NUM];                  /* register configs                 */
 } alog_shm_t;
 
 #endif
