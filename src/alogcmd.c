@@ -1,29 +1,28 @@
 /*
- *   ALOG控制台程序
+ *   ALOG command tool
  * */
 #include "alogcmd.h"
 int main(int argc , char **argv)
 {
-    /* 加载环境变量 */
+    /* get from environment */
     ENV_ALOG_HOME = getenv("ALOG_HOME");
     if ( ENV_ALOG_HOME == NULL ){
-        perror("环境变量[ALOG_HOME]不存在\n");
+        perror("environment variable [ALOG_HOME] not found\n");
         exit(1);
     }
     ENV_ALOG_SHMKEY = getenv("ALOG_SHMKEY");
     if ( ENV_ALOG_SHMKEY == NULL ){
-        perror("环境变量[ALOG_SHMKEY]不存在\n");
+        perror("environment variable [ALOG_SHMKEY] not found\n");
         exit(1);
     }
 
-    /* 判断参数类型 */
     if ( argc != 2 ){
         alogcmd_help();
         exit(1);
     }
     if ( strcmp( argv[1] , "init" ) == 0  || strcmp( argv[1] , "reload" ) == 0 ){
         if ( alogcmd_load(argv[1]) ){
-            printf("ALOG %s失败\n",argv[1]);
+            printf("ALOG %s fail\n",argv[1]);
             exit(1);
         } else {
             alogcmd_print();
@@ -32,10 +31,10 @@ int main(int argc , char **argv)
         alogcmd_print();
     } else if ( strcmp( argv[1] , "close" ) == 0 ){
         if ( alogcmd_close() ){
-            printf("ALOG close失败\n");
+            printf("ALOG close fail\n");
             exit(1);
         } else {
-            printf("ALOG close成功\n");
+            printf("ALOG close succed\n");
         }
     } else {
         alogcmd_help();
@@ -45,6 +44,7 @@ int main(int argc , char **argv)
 }
 void alogcmd_help()
 {
+    printf("%s\n" , ALOG_VERSION);
     printf("alogcmd <init/reload/print/close>\n");
     return;
 }
@@ -67,12 +67,11 @@ int alogcmd_load(char *type)
         return -1;
     }
 
-    /* 从配置文件和环境变量加载配置到内存 */
     char filepath[ALOG_FILEPATH_LEN];
     sprintf( filepath , "%s/cfg/alog.cfg" , ENV_ALOG_HOME);
     alog_shm_t *l_shm = alog_loadCfg( filepath );
     if ( l_shm == NULL ){
-        printf("加载配置文件失败\n");
+        printf("fail to load config from %s\n" , filepath);
         return -1;
     }
     l_shm->shmKey = shmkey;
@@ -135,11 +134,10 @@ int alogcmd_print()
     return 0;
 }
 /* 
- * 关闭共享内存区
+ *  Clena Up
  * */
 int alogcmd_close()
 {
-    ALOG_DEBUG( "进入alogcmd_close()" );
     key_t shmkey = (key_t)atoi(ENV_ALOG_SHMKEY);
     int shmid = 0;
     struct shmid_ds buf;
@@ -150,13 +148,12 @@ int alogcmd_close()
         return -1;
     }
 
-    /* 判断共享内存挂载情况 */
     if ( shmctl( shmid , IPC_STAT , &buf ) ) {
         perror("shmctl error");
         return -1;
     }
     if ( buf.shm_nattch > 0 ){
-        printf("共享内存仍有[%d]个进程挂载，确定继续吗？(y/n)\n" , buf.shm_nattch);
+        printf("there are [%d] process stil attached to share memory , continue to close ? (y/n)\n" , buf.shm_nattch);
         char ch = getchar();
         if ( ch == 'n' ){
             return 0;
@@ -174,6 +171,5 @@ int alogcmd_close()
         return -1;
     }
 
-    ALOG_DEBUG( "alogcmd_close()完成" );
     return 0;
 }

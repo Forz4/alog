@@ -22,20 +22,20 @@
 #include <math.h>
 #include <stdarg.h>
 
-/* 节点状态 */
+/* node status */
 #define ALOG_NODE_FREE              0
 #define ALOG_NODE_FULL              1
 #define ALOG_NODE_USED              2
-/* 默认配置 */
+/* default config */
 #define ALOG_DEF_MAXMEMORYSIZE      4
 #define ALOG_DEF_SINGLEBLOCKSIZE    4
 #define ALOG_DEF_FLUSHINTERVAL      2
 #define ALOG_DEF_CHECKINTERVAL      5
-/* 日志打印类型 */
+/* log type */
 #define ALOG_TYPE_ASC               1
 #define ALOG_TYPE_BIN               2
 #define ALOG_TYPE_HEX               3
-/* 长度宏定义 */
+/* macro */
 #define ALOG_REGNAME_LEN            20
 #define ALOG_CSTNAME_LEN            20
 #define ALOG_FORMAT_LEN             7
@@ -48,7 +48,7 @@
 #define ALOG_BAKFILEFORMAT          2
 #define ALOG_VERSION                "ALOG_VERSION_V1.0"
 
-/* 日志类型定义 */
+/* log level */
 enum alog_level{
     LOGNON = 0,
     LOGFAT,
@@ -59,7 +59,7 @@ enum alog_level{
     LOGDBG
 };
 
-/* 日期时间字符串缓存 */
+/* timver */
 typedef struct alog_timer{
     char            date[8+1];                                  /* 日期字符串                       */
     char            time[8+1];                                  /* 时间字符串 HH:MM:SS              */
@@ -68,14 +68,14 @@ typedef struct alog_timer{
     int             sec;                                        /* 实际秒数                         */
 } alog_timer_t;
 
-/* 持久化线程参数结构体 */
+/* persist thread argument */
 typedef struct alog_persist_arg{
     struct alog_context *ctx;                                   /* 上下文指针                       */
     char                regName[ALOG_REGNAME_LEN+1];            /* 注册名                           */
     char                cstName[ALOG_CSTNAME_LEN+1];            /* 识别名                           */
 } alog_persist_arg_t;
 
-/* 缓存日志块节点 */
+/* node */
 typedef struct alog_bufNode{
     int                 index;                                  /* 内存快序号                       */
     char                usedFlag;                               /* 使用标志                         */
@@ -86,7 +86,7 @@ typedef struct alog_bufNode{
     struct alog_bufNode *prev;                                  /* 指向上一个节点                   */
 } alog_bufNode_t;
 
-/* 本地日志缓冲区 */
+/* buffer */
 typedef struct alog_buffer{
     char                regName[ALOG_REGNAME_LEN+1];            /* 注册名                           */
     char                cstName[ALOG_CSTNAME_LEN+1];            /* 识别名                           */
@@ -96,7 +96,7 @@ typedef struct alog_buffer{
     struct alog_bufNode *consPtr;                               /* 消费者指针                       */
 }alog_buffer_t;
 
-/* 注册名配置项结构 */
+/* regname config */
 typedef struct alog_regCfg{
     char                regName[ALOG_REGNAME_LEN+1];            /* 注册名                           */
     short               level;                                  /* 日志级别                         */
@@ -121,7 +121,7 @@ typedef struct alog_context{
     pthread_t           updTid;
 }alog_context_t;
 
-/* 共享内存结构 */
+/* context */
 typedef struct alog_shm{
     key_t               shmKey;                                 /* 共享内存key值                    */
     int                 shmId;                                  /* 共享内存id值                     */

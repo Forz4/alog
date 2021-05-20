@@ -68,7 +68,6 @@ int main(int argc , char *argv[])
     }
 
     if ( alog_initContext() ) {
-        printf("alog_initContext失败\n");
         exit(0);
     }
 

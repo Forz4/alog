@@ -1,118 +1,106 @@
 #include "alog.h"
 #include "alogfun.h"
 #include "alogtypes.h"
-/* 
- *  日志模块初始化
+/*
+ * Initialize Context
  * */
 int alog_initContext()
 {
+    /* clean up previous context , especially in fork situation */
     alog_cleanContext();
+
     char            *ENV_SHMKEY = NULL;
     key_t           shmkey;
     int             shmid = 0;
     alog_shm_t      *g_shm = NULL;
 
-    /* 加载环境变量 */
+    /* get shmkey from environment */
     ENV_SHMKEY = getenv("ALOG_SHMKEY");
     if ( ( ENV_SHMKEY = getenv("ALOG_SHMKEY") ) == NULL ){
-        ALOG_DEBUG("获取环境变量[ALOG_SHMKEY]失败\n");
+        ALOG_DEBUG("fail to get environment variable [ALOG_SHMKEY]\n");
         return ALOGERR_GETENV_FAIL;
     }
 
-    /* 挂载共享内存 */
     shmkey = atoi(ENV_SHMKEY);
     if ( ( shmid = shmget( shmkey , sizeof(alog_shm_t) , 0) ) < 0 ){
-        ALOG_DEBUG("shmget 失败 , shmkey[%s] , shmid[%d] , errmsg[%s]!\n" , ENV_SHMKEY , shmid  , strerror(errno));
+        ALOG_DEBUG("shmget fail , shmkey[%s] , shmid[%d] , errmsg[%s]!\n" , ENV_SHMKEY , shmid  , strerror(errno));
         return ALOGERR_SHMGET_FAIL;
     } 
     if ( (g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 ))  == NULL ){
-        ALOG_DEBUG("shmat 失败 , shmkey[%s] , shmid[%d]! , errmsg[%s]\n" , ENV_SHMKEY , shmid  , strerror(errno));
+        ALOG_DEBUG("shmat fail , shmkey[%s] , shmid[%d]! , errmsg[%s]\n" , ENV_SHMKEY , shmid  , strerror(errno));
         return ALOGERR_SHMAT_FAIL;
     }
-    ALOG_DEBUG("alog_initContext 共享内存挂载完成");
     
-    /* 分配上下文 */
+    /* alloc space for context */
     alog_context_t  *ctx = (alog_context_t *)malloc(sizeof(alog_context_t));
     if ( ctx == NULL ) {
-        ALOG_DEBUG("malloc [alog_context_t] 失败\n");
+        ALOG_DEBUG("fail to malloc [alog_context_t]\n");
         shmdt(g_shm);
         return ALOGERR_MALLOC_FAIL;
     }
-    ALOG_DEBUG("alog_initContext 上下文分配完成");
 
+    /* set g_alog_ctx */
     g_alog_ctx = ctx;
 
-    /* 初始化mutex */
+    /* initialize mutex */
     if ( pthread_mutex_init(&(ctx->mutex), NULL) )
     {
-        ALOG_DEBUG("初始化mutex失败\n");
+        ALOG_DEBUG("fail to initialize mutex\n");
         shmdt(g_shm);
         return ALOGERR_INITMUTEX_FAIL;
     }
-    ALOG_DEBUG("alog_initContext 初始化mutex完成");
 
-    /* 初始化条件变量 */
+    /* initialize cond */
     if ( pthread_cond_init(&(ctx->cond_persist), NULL))
     {
-        ALOG_DEBUG("初始化条件变量失败\n");
         shmdt(g_shm);
         return ALOGERR_INITCOND_FAIL;
     }
-    ALOG_DEBUG("alog_initContext 初始化cond完成");
 
-    /* 分配本地配置缓存区 */
+    /* initialize space for share memory struct */
     if ( (ctx->l_shm = (alog_shm_t *)malloc(sizeof(alog_shm_t))) == NULL ){
-        ALOG_DEBUG("malloc [alog_shm_t] 失败\n");
         shmdt(g_shm);
         return ALOGERR_MALLOC_FAIL;
     }
-    ALOG_DEBUG("alog_initContext 初始化本地缓存区完成");
 
-    /* 初始化上下文变量 */
     ctx->g_shm = g_shm;
     ctx->bufferNum = 0;
     memset(ctx->buffers , 0x00 , sizeof(ctx->buffers));
     ctx->closeFlag = 0;
-    ALOG_DEBUG("alog_initContext 初始化上下文变量完成");
-    
-    alog_update_timer( );
-    ALOG_DEBUG("alog_initContext 初始化timer完成date[%s],time[%s]",g_alog_ctx->timer.date,g_alog_ctx->timer.time);
-
-    /* 同步本地配置 */
+    alog_update_timer();
     memcpy( g_alog_ctx->l_shm , g_shm , sizeof(alog_shm_t) );
 
-    /* 启动定时更新线程 */
+    /* create update thread */
     pthread_create(&(g_alog_ctx->updTid), NULL, alog_update_thread, NULL );
 
-    ALOG_DEBUG("alog_initContext 执行完成");
     return 0;
 }
 /*
- *   日志模块关闭
+ *  Clena Up
  * */
 int alog_close()
 {
-    /* 设置结束标志 */
+    /* set close flag */
     alog_lock();
     g_alog_ctx->closeFlag = 1;
     alog_unlock();
 
-    /* 通知所有持久化线程冲刷磁盘 */
+    /* signal all threads */
     pthread_cond_broadcast(&(g_alog_ctx->cond_persist));
     
-    /* 等待持久化线程退出 */
+    /* join all threadsa */
     int i = 0;
     for ( i = 0 ; i < g_alog_ctx->bufferNum ; i ++ ){
         pthread_join(g_alog_ctx->buffers[i].consTid, NULL);
     }
     pthread_join(g_alog_ctx->updTid, NULL);
 
-    ALOG_DEBUG("持久化线程全部退出完毕");
+    ALOG_DEBUG("all threads joined");
 
-    /* 断开共享内存连接 */
+    /* detach share memory */
     shmdt(g_alog_ctx->g_shm);
 
-    /* 释放分配的资源 */
+    /* clean up resources */
     pthread_mutex_destroy(&(g_alog_ctx->mutex));
     pthread_cond_destroy(&(g_alog_ctx->cond_persist));
     free(g_alog_ctx->l_shm);
@@ -121,7 +109,7 @@ int alog_close()
     return 0;
 }
 /*
- *  日志打印基础接口
+ *  main interface for logging
  * */
 int alog_writelog_t ( 
         int             logtype,
@@ -141,17 +129,22 @@ int alog_writelog_t (
     int             ret = 0;
     struct          timeval  tv;
 
-    /* 获取注册名配置 */
+    /* get config for current regname in local memory */
     alog_regCfg_t   *regCfg = NULL;
     if ( (regCfg = getRegByName( g_alog_ctx->l_shm , regname ) ) == NULL )
         return ALOGMSG_REG_NOTFOUND;
-    /* 判断日志级别 */
+
+    /* judge log level */
     if ( level > regCfg->level )
         return ALOGOK;
 
+    /* get current time */
     gettimeofday( &tv , NULL );
+
+    /* lock mutext */
     alog_lock();
-    /* 获取本地缓冲区，若缓冲区不存在则新增缓冲区 */
+
+    /* get buffer for current regname+cstname , if not exist then create one */
     alog_buffer_t   *buffer = NULL;
     if( (buffer = getBufferByName( regname , cstname )) == NULL ){
         ret = alog_addBuffer( regname  , cstname , &buffer);
@@ -160,43 +153,44 @@ int alog_writelog_t (
             return ret;
         }
     }
-    /* 根据配置文件组装日志内容 */
+
+    /* packing log message based on config */
     int         offset = 0;
     int         max = g_alog_ctx->l_shm->singleBlockSize * 1024;
     char        *temp = (char *)malloc(max);
     int         leftsize = 0 ;
     memset( temp , 0x00 , max );
 
-    /* 日期 */
+    /* date */
     if ( regCfg->format[0] == '1' ){
         if ( tv.tv_sec % 86400 != g_alog_ctx->timer.sec % 86400 ){
-            /* 当前日期跟缓存timer的日期不同，则更新本地timer缓存 */
+            /* update timer if now is a new day */
             alog_update_timer( );
         }
         offset += sprintf( temp+offset , "[%8s]" , g_alog_ctx->timer.date  );
     }
-    /* 时间 */
+    /* time */
     if ( regCfg->format[1] == '1' ){
         if ( tv.tv_sec != g_alog_ctx->timer.sec ){
-            /* 当前时间跟缓存timer不在同一秒，则更新缓存 */
+            /* update timer if now is a new second */
             alog_update_timer( );
         }
         offset += sprintf( temp+offset ,  "[%8s]" , g_alog_ctx->timer.time );
     }
-    /* 微秒 */
+    /* micro second */
     if ( regCfg->format[2] == '1' ){
         offset += sprintf( temp+offset ,"[%06d]" , tv.tv_usec );
     }
-    /* 进程号+线程号 */
+    /* pid+tid */
     if ( regCfg->format[3] == '1' ){
         offset += sprintf( temp+offset ,"[PID:%-8d]" , getpid() );
         offset += sprintf( temp+offset ,"[TID:%-6ld]" , (long)pthread_self()%1000000 );
     }
-    /* 模块名 */
+    /* modname */
     if ( regCfg->format[4] == '1' ){
         offset += sprintf( temp+offset , "[%s]" , modname );
     }
-    /* 日志级别 */
+    /* log level */
     if ( regCfg->format[5] == '1' ){
         char levelstr[7];
         switch( level ){
@@ -224,7 +218,7 @@ int alog_writelog_t (
         }
         offset += sprintf( temp+offset , "[%s]" , levelstr);
     }
-    /* 文件名+行数 */
+    /* filaname+lineno */
     if ( regCfg->format[6] == '1' ){
         offset += sprintf( temp+offset , "[%s:%d]" , file , lineno);
     }
@@ -232,7 +226,7 @@ int alog_writelog_t (
     va_list ap;
     va_start( ap , fmt );
 
-    /* 根据日志类型拼接日志内容 */
+    /* apppend read log message based on logtype */
     switch ( logtype ){
         case ALOG_TYPE_ASC:
             offset += vsnprintf( temp+offset , max - offset , fmt , ap );
@@ -240,7 +234,6 @@ int alog_writelog_t (
             va_end(ap);
             break;
         case ALOG_TYPE_HEX:
-            //offset += snprintf( temp+offset , max - offset , "打印十六进制报文:\n");
 offset += snprintf( temp+offset , max - offset , "--------------------------------Hex Message begin------------------------------\n");
             for ( i = 0 ; i <= len/16 ; i ++){
                 offset += snprintf( temp+offset , max - offset , "M(%06X)=< " , i);
@@ -278,34 +271,35 @@ offset += snprintf( temp+offset , max - offset , "------------------------------
             break;
     }
 
-    /* 计算当前node是否有足够空间存放日志 */
+    /* get productor pointer for current buffer */
     alog_bufNode_t  *node = buffer->prodPtr;
 
-    /*if (node->usedFlag == ALOG_NODE_FULL || node->offset + offset > g_alog_ctx->l_shm->singleBlockSize*1024){ */
+    /* judge if there are enough space for current message */
     if (node->usedFlag == ALOG_NODE_FULL || node->offset + offset > node->len ){ 
 
-        ALOG_DEBUG("当前节点[%d]空间不足,修改节点状态为FULL",node->index);
+        ALOG_DEBUG("not enough space in node [%d] , modify status to FULL , check next node",node->index);
         node->usedFlag = ALOG_NODE_FULL;
 
-        /* 如果下一个节点依然满，则尝试增加新节点 */
+        /* if the next node is not FREE , then try to add a new node */
         if ( node->next->usedFlag !=  ALOG_NODE_FREE ){
-            ALOG_DEBUG("下一个节点[%d]空间也满",node->next->index);
-            /* 判断是否超过总内存限制 */
+            ALOG_DEBUG("the next node [%d] is not FREE",node->next->index);
+
+            /* judge if total memory use exceeds limit */
             if ( g_alog_ctx->l_shm->singleBlockSize * (buffer->nodeNum+1) > g_alog_ctx->l_shm->maxMemorySize * 1024){
-                ALOG_DEBUG("内存已占满，无法新增节点");
+                ALOG_DEBUG("memory use over limit , can not create new nodes");
                 alog_unlock();
                 free(temp);
                 return ALOGERR_MEMORY_FULL;
             } else {
-                ALOG_DEBUG("开始新增节点");
-                /* 新增一个节点 */
+                ALOG_DEBUG("start to add new node");
+                /* add a new node */
                 alog_bufNode_t *tempnode = (alog_bufNode_t *)malloc(sizeof(alog_bufNode_t));
                 if ( tempnode == NULL){
                     alog_unlock();
                     free(temp);
                     return ALOGERR_MALLOC_FAIL;
                 }
-                /* 插入节点 */
+                /* append new node to chain */
                 tempnode->content = (char *)malloc(g_alog_ctx->l_shm->singleBlockSize*1024);
                 if ( tempnode->content == NULL ){
                     free(tempnode);
@@ -325,22 +319,23 @@ offset += snprintf( temp+offset , max - offset , "------------------------------
                 buffer->nodeNum ++;
                 tempnode->index = buffer->nodeNum;
 
-                ALOG_DEBUG("新增节点完成,前序节点[%d],新增节点[%d],后序节点[%d]",node->index,node->next->index,node->next->next->index);
+                ALOG_DEBUG("new node added ,prev node[%d],current node[%d],next node[%d]",node->index,node->next->index,node->next->next->index);
             }
         } 
-        /* 切换到下一个可用节点 */
+        /* switch to next valid node */
         node = node->next;
         buffer->prodPtr = node;
-        ALOG_DEBUG("切换到节点[%d]",node->index);
-        /* 唤醒持久化线程工作 */
+        ALOG_DEBUG("switch to node[%d]",node->index);
+
+        /* signal persist thread to work */
         pthread_cond_signal(&(g_alog_ctx->cond_persist));
     } 
 
-    ALOG_DEBUG("日志准备写入节点[%d],当前偏移量[%d]",node->index,node->offset);
+    ALOG_DEBUG("ready to write message to node[%d],current offset[%d]",node->index,node->offset);
     memcpy( node->content+node->offset , temp , offset );
     node->offset += offset;
     node->usedFlag = ALOG_NODE_USED;
-    ALOG_DEBUG("修改节点[%d]状态为USED",node->index);
+    ALOG_DEBUG("modify node[%d] status to USED",node->index);
 
     alog_unlock();
     free(temp);
