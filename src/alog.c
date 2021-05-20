@@ -105,7 +105,7 @@ int alog_close()
     for ( i = 0 ; i < g_alog_ctx->bufferNum ; i ++ ){
         pthread_join(g_alog_ctx->buffers[i].consTid, NULL);
     }
-    /*pthread_join(g_alog_ctx->updTid, NULL);*/
+    pthread_join(g_alog_ctx->updTid, NULL);
 
     ALOG_DEBUG("持久化线程全部退出完毕");
 
@@ -189,8 +189,8 @@ int alog_writelog_t (
     }
     /* 进程号+线程号 */
     if ( regCfg->format[3] == '1' ){
-        offset += sprintf( temp+offset ,"[PID:%-10d]" , getpid() );
-        offset += sprintf( temp+offset ,"[TID:%-10ld]" , (long)pthread_self() );
+        offset += sprintf( temp+offset ,"[PID:%-8d]" , getpid() );
+        offset += sprintf( temp+offset ,"[TID:%-6ld]" , (long)pthread_self()%1000000 );
     }
     /* 模块名 */
     if ( regCfg->format[4] == '1' ){
@@ -240,7 +240,7 @@ int alog_writelog_t (
             va_end(ap);
             break;
         case ALOG_TYPE_HEX:
-            offset += snprintf( temp+offset , max - offset , "打印十六进制报文:\n");
+            //offset += snprintf( temp+offset , max - offset , "打印十六进制报文:\n");
 offset += snprintf( temp+offset , max - offset , "--------------------------------Hex Message begin------------------------------\n");
             for ( i = 0 ; i <= len/16 ; i ++){
                 offset += snprintf( temp+offset , max - offset , "M(%06X)=< " , i);

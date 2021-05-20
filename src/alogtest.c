@@ -77,26 +77,17 @@ int main(int argc , char *argv[])
     pthread_t       tids[20];
 
     for( i = 0 ; i < LENGTH ; i ++){
-        message[i] = 0x30 + i % 26;
+        message[i] = 'A' + i % 26;
     }
     message[i] = '\0';
 
-    ALOG_INFASC( "TEST0" , "parent" , "" , "ready to start test");
-    ALOG_INFASC( "TEST0" , "parent1" , "" , "ready to start test");
-    ALOG_INFASC( "TEST0" , "parent2" , "" , "ready to start test");
-    int pid = fork();
-    if ( pid == 0  ){
-        //alog_initContext();
-        ALOG_INFASC( "TEST0" , "parent" , "" , "进入子进程");
-        for( i = 0 ; i < THREADNUM ; i ++ ){
-            pthread_create( &tids[i] , NULL , func , 0 );
-        }
-        for( i = 0 ; i < THREADNUM ; i ++ ){
-            pthread_join( tids[i] ,  NULL );
-        }
-    } else if ( pid > 0 ){
-        ALOG_INFASC( "TEST0" , "parent" , "" , "子进程pid  %d" , pid);
+    for( i = 0 ; i < THREADNUM ; i ++ ){
+        pthread_create( &tids[i] , NULL , func , 0 );
     }
+    for( i = 0 ; i < THREADNUM ; i ++ ){
+        pthread_join( tids[i] ,  NULL );
+    }
+
     alog_close();
     return 0;
 }

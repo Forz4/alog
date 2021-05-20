@@ -46,6 +46,7 @@
 #define ALOG_BUFFER_NUM             20
 #define ALOG_CURFILEFORMAT          1
 #define ALOG_BAKFILEFORMAT          2
+#define ALOG_VERSION                "ALOG_VERSION_V1.0"
 
 /* 日志类型定义 */
 enum alog_level{

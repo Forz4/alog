@@ -102,15 +102,15 @@ int alogcmd_print()
     }
 
     struct tm *tm = localtime(&(g_shm->updTime));
-    printf("ALOG_HOME主目录    :    %s\n",ENV_ALOG_HOME);
-    printf("共享内存key        :    %d\n",g_shm->shmKey);
-    printf("共享内存ID         :    %d\n",g_shm->shmId);
-    printf("缓冲区最大使用量   :    %d(MB)\n",g_shm->maxMemorySize);
-    printf("单个日志块大小     :    %d(KB)\n",g_shm->singleBlockSize);
-    printf("持久化线程写入间隔 :    %d(s)\n",g_shm->flushInterval);
-    printf("配置更新检查间隔   :    %d(s)\n",g_shm->checkInterval);
-    printf("更新时间戳         :    %4d%02d%02d %02d:%02d:%02d\n",tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour,tm->tm_min,tm->tm_sec);
-    printf("配置项个数         :    %d\n",g_shm->regNum);
+    printf("ALOG_HOME Directory  :    %s\n",ENV_ALOG_HOME);
+    printf("ALOG_SHMKEY          :    %d\n",g_shm->shmKey);
+    printf("ALOG SHMID           :    %d\n",g_shm->shmId);
+    printf("ALOG_MAXMEMORYSIZE   :    %d(MB)\n",g_shm->maxMemorySize);
+    printf("ALOG_SINGLEBLOCKSIZE :    %d(KB)\n",g_shm->singleBlockSize);
+    printf("ALOG_FLUSHINTERVAL   :    %d(s)\n",g_shm->flushInterval);
+    printf("ALOG_CHECKINTERVAL   :    %d(s)\n",g_shm->checkInterval);
+    printf("UPDATE TIMESTAMP     :    %4d%02d%02d %02d:%02d:%02d\n",tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour,tm->tm_min,tm->tm_sec);
+    printf("REG CONFIG NUMBER    :    %d\n",g_shm->regNum);
     printf("======================================================================================================================================\n");
     printf( format_head ,\
             "regname",\
