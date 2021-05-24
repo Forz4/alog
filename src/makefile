@@ -10,7 +10,7 @@ debug:
 DEBUG = -D ALOG_DEBUG_MODE
 INCPATH = -I ../include
 LIBS = -lpthread
-CFLAGS = -Wall -std=gnu99
+CFLAGS = -Wall -std=gnu99 -fPIC
 
 alogcmd:	alogcmd.o alogfun.o
 	@gcc -o alogcmd alogcmd.o alogfun.o $(LIBS)
