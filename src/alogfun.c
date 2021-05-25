@@ -234,7 +234,6 @@ void *alog_persist_thread(void *arg)
         return NULL;
     }
     alog_bufNode_t      *node = NULL;
-    alog_bufNode_t      *node_start = NULL;
     struct timespec     abstime;
     struct timeval      timeval;
     int                 ret = 0;
@@ -259,7 +258,7 @@ void *alog_persist_thread(void *arg)
              * */
         }
 
-        ALOG_DEBUG("check node[%d] again" , node->index);
+        ALOG_DEBUG("check node[%d]" , node->index);
         /*
          * 3. check current node again , if still FREE  then unlock and retry
          * */
@@ -276,67 +275,34 @@ void *alog_persist_thread(void *arg)
                 ALOG_DEBUG("closeFlag not set , continue ");
                 continue;
             }
-        }
-        /*
-         * 4. if current node not FREE , then iterate all nodes and find all nodes which are not FREE,
-         *    set those nodes to FULL and start to persist
-         * */
-        int i = 0 ;
-        int count = 0;
-        node_start = node;
-        ALOG_DEBUG("start to iterate all [%d] nodes" , buffer->nodeNum);
-        for ( i = 0 ; i < buffer->nodeNum ; i ++){
-            ALOG_DEBUG("check node[%d]" , node->index);
-            if ( node->usedFlag == ALOG_NODE_USED ){
-                ALOG_DEBUG("node[%d] is USED" , node->index);
-                node->usedFlag = ALOG_NODE_FULL;
-                ALOG_DEBUG("modify node[%d] to FULL" , node->index);
-                /* if current node status is changed from used to full , then update prodPtr */
-                if ( buffer->prodPtr == node ){
-                    buffer->prodPtr = node->next;
-                }
-                count ++;
-                break;
-            } else if ( node->usedFlag == ALOG_NODE_FULL ){
-                ALOG_DEBUG("node[%d] is FULL" , node->index);
-                count ++;
-                node = node->next;
-                ALOG_DEBUG("continue to iterate , count is [%d]",count);
-                continue;
-            } else if ( node->usedFlag == ALOG_NODE_FREE ){
-                ALOG_DEBUG("node[%d] is FREE , quit" , node->index);
-                break;
-            }
+        } else if ( node->usedFlag == ALOG_NODE_USED ){
+            /*
+            * 4. if current node is USED , then set current node to FULL and do persistence
+            * */
+            ALOG_DEBUG("node[%d] is USED , set status to FULL" , node->index);
+            node->usedFlag = ALOG_NODE_FULL;
+        } else {
+            ALOG_DEBUG("node[%d] is FULL" , node->index);
         }
         alog_unlock();
 
         /* 
-         * 5. persist all FULL nodes
+         * 5. persist current node
          * */
-        node = node_start;
-        ALOG_DEBUG("start to persist from node[%d] , total[%d] nodes" , node->index , count);
-        for ( i = 0 ; i < count ; i ++ ){
-            ALOG_DEBUG("persisting node[%d]",node->index);
-            alog_persist( myregname , mycstname , node );
-            ALOG_DEBUG("node[%d] persistence done",node->index);
-            node = node->next;
-        }
+        ALOG_DEBUG("persisting node[%d]" , node->index );
+        alog_persist( myregname , mycstname , node );
+        ALOG_DEBUG("node[%d] has been written to file" , node->index );
 
         /* 
          * 6. update node status
          * */
         alog_lock();
-        node = node_start;
-        ALOG_DEBUG("start to update node status from node[%d] , total[%d] nodes" , node->index , count);
-        for ( i = 0 ; i < count ; i ++ ){
-            ALOG_DEBUG("set node[%d] to FREE",node->index);
-            node->usedFlag = ALOG_NODE_FREE;
-            memset( node->content , 0x0 ,  node->len );
-            node->offset = 0;
-            node = node->next;
-        }
+        ALOG_DEBUG("set node[%d] to FREE",node->index);
+        node->usedFlag = ALOG_NODE_FREE;
+        memset( node->content , 0x0 ,  node->len );
+        node->offset = 0;
+        buffer->consPtr = node->next;
         alog_unlock();
-        buffer->consPtr = node;
     }
 
     /* rename log file before quit */

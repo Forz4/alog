@@ -234,7 +234,7 @@ int alog_writelog_t (
             va_end(ap);
             break;
         case ALOG_TYPE_HEX:
-offset += snprintf( temp+offset , max - offset , "--------------------------------Hex Message begin------------------------------\n");
+offset += snprintf( temp+offset , max - offset , "\n--------------------------------Hex Message begin------------------------------\n");
             for ( i = 0 ; i <= len/16 ; i ++){
                 offset += snprintf( temp+offset , max - offset , "M(%06X)=< " , i);
                 for ( j = 0 ; j+i*16 < len && j < 16 ;j ++){
@@ -255,7 +255,7 @@ offset += snprintf( temp+offset , max - offset , "------------------------------
                 }
                 offset += snprintf( temp+offset , max - offset , "\n");
             }
-offset += snprintf( temp+offset , max - offset , "--------------------------------Hex Message end--------------------------------\n");
+offset += snprintf( temp+offset , max - offset , "\n--------------------------------Hex Message end--------------------------------\n");
             break;
         case ALOG_TYPE_BIN:
         default:
