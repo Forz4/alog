@@ -138,12 +138,6 @@ int alog_writelog_t (
     if ( level > regCfg->level )
         return ALOGOK;
 
-    /* get current time */
-    gettimeofday( &tv , NULL );
-
-    /* lock mutext */
-    alog_lock();
-
     /* get buffer for current regname+cstname , if not exist then create one */
     alog_buffer_t   *buffer = NULL;
     if( (buffer = getBufferByName( regname , cstname )) == NULL ){
@@ -153,6 +147,12 @@ int alog_writelog_t (
             return ret;
         }
     }
+
+    /* lock mutext */
+    alog_lock();
+
+    /* get current time */
+    gettimeofday( &tv , NULL );
 
     /* packing log message based on config */
     int         offset = 0;

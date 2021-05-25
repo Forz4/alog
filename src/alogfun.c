@@ -291,6 +291,10 @@ void *alog_persist_thread(void *arg)
                 ALOG_DEBUG("node[%d] is USED" , node->index);
                 node->usedFlag = ALOG_NODE_FULL;
                 ALOG_DEBUG("modify node[%d] to FULL" , node->index);
+                /* if current node status is changed from used to full , then update prodPtr */
+                if ( buffer->prodPtr == node ){
+                    buffer->prodPtr = node->next;
+                }
                 count ++;
                 break;
             } else if ( node->usedFlag == ALOG_NODE_FULL ){
