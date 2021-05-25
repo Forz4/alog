@@ -138,6 +138,9 @@ int alog_writelog_t (
     if ( level > regCfg->level )
         return ALOGOK;
 
+    /* lock mutext */
+    alog_lock();
+
     /* get buffer for current regname+cstname , if not exist then create one */
     alog_buffer_t   *buffer = NULL;
     if( (buffer = getBufferByName( regname , cstname )) == NULL ){
@@ -148,18 +151,15 @@ int alog_writelog_t (
         }
     }
 
-    /* lock mutext */
-    alog_lock();
-
-    /* get current time */
-    gettimeofday( &tv , NULL );
-
     /* packing log message based on config */
     int         offset = 0;
     int         max = g_alog_ctx->l_shm->singleBlockSize * 1024;
     char        *temp = (char *)malloc(max);
     int         leftsize = 0 ;
     memset( temp , 0x00 , max );
+
+    /* get current time */
+    gettimeofday( &tv , NULL );
 
     /* date */
     if ( regCfg->format[0] == '1' ){
@@ -274,15 +274,25 @@ offset += snprintf( temp+offset , max - offset , "\n----------------------------
     /* get productor pointer for current buffer */
     alog_bufNode_t  *node = buffer->prodPtr;
 
+    ALOG_DEBUG("message packed ok , length[%d] , finding available node...",offset);
+    /* judge if message length exceeds singleblocksize */
+    if ( offset > g_alog_ctx->l_shm->singleBlockSize*1024 ){
+        alog_unlock();
+        free(temp);
+        return ALOGERR_MALLOC_FAIL;
+    }
+
     /* judge if there are enough space for current message */
     if (node->usedFlag == ALOG_NODE_FULL || node->offset + offset > node->len ){ 
 
-        ALOG_DEBUG("not enough space in node [%d] , modify status to FULL , check next node",node->index);
-        node->usedFlag = ALOG_NODE_FULL;
+        ALOG_DEBUG("current node node [%d] is FULL or dosen't have enough space ",node->index);
+        if( node->usedFlag != ALOG_NODE_FULL )
+            node->usedFlag = ALOG_NODE_FULL;
 
+        ALOG_DEBUG("checking next node [%d] ",node->next->index);
         /* if the next node is not FREE , then try to add a new node */
         if ( node->next->usedFlag !=  ALOG_NODE_FREE ){
-            ALOG_DEBUG("the next node [%d] is not FREE",node->next->index);
+            ALOG_DEBUG("node [%d] is not FREE",node->next->index);
 
             /* judge if total memory use exceeds limit */
             if ( g_alog_ctx->l_shm->singleBlockSize * (buffer->nodeNum+1) > g_alog_ctx->l_shm->maxMemorySize * 1024){

@@ -302,6 +302,9 @@ void *alog_persist_thread(void *arg)
         memset( node->content , 0x0 ,  node->len );
         node->offset = 0;
         buffer->consPtr = node->next;
+        if ( buffer->prodPtr == node ){
+            buffer->prodPtr = node->next;
+        }
         alog_unlock();
     }
 

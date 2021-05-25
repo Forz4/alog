@@ -23,7 +23,7 @@
 #define     ALOG_DEBUG( fmt , ... ) \
     do{ \
         if(DEBUG) \
-            printf("[%-10s:%-6d][PID%-8d][TID%6lu]"fmt"\n",__FILE__,__LINE__,getpid(),(unsigned long)pthread_self()%1000000,##__VA_ARGS__ );\
+            printf("[%-10s:%-6d][PID %-8d][TID %6lu]"fmt"\n",__FILE__,__LINE__,getpid(),(unsigned long)pthread_self()%1000000,##__VA_ARGS__ );\
     }while(0)
 
 #endif
