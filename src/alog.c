@@ -229,7 +229,7 @@ int alog_writelog_t (
     /* apppend read log message based on logtype */
     switch ( logtype ){
         case ALOG_TYPE_ASC:
-            offset += vsnprintf( temp+offset , max - offset , fmt , ap );
+            offset += vsnprintf( temp+offset , max - offset - 1, fmt , ap );
             offset += snprintf( temp+offset , max - offset , "\n");
             va_end(ap);
             break;
@@ -265,9 +265,9 @@ offset += snprintf( temp+offset , max - offset , "\n----------------------------
                 offset = max;
             } else {
                 memcpy( temp + offset , buf , len );
-                offset += len;
+                offset += len + 1;
             }
-            temp[max-1] = '\n';
+            temp[offset-1] = '\n';
             break;
     }
 
