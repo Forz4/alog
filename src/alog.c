@@ -229,14 +229,15 @@ int alog_writelog_t (
     /* apppend read log message based on logtype */
     switch ( logtype ){
         case ALOG_TYPE_ASC:
-            offset += vsnprintf( temp+offset , max - offset - 1, fmt , ap );
-            offset += snprintf( temp+offset , max - offset , "\n");
+            offset += snprintf( temp+offset , max - offset , "[");
+            offset += vsnprintf( temp+offset , max - offset - 2, fmt , ap );
+            offset += snprintf( temp+offset , max - offset , "]\n");
             va_end(ap);
             break;
         case ALOG_TYPE_HEX:
 offset += snprintf( temp+offset , max - offset , "\n--------------------------------Hex Message begin------------------------------\n");
             for ( i = 0 ; i <= len/16 ; i ++){
-                offset += snprintf( temp+offset , max - offset , "M(%06X)=< " , i);
+                offset += snprintf( temp+offset , max - offset , "M(%06d)=< " , i*16);
                 for ( j = 0 ; j+i*16 < len && j < 16 ;j ++){
                     ch = (unsigned char)buf[j+i*16];
                     offset += snprintf( temp+offset , max - offset , "%02X " , ch);
@@ -255,18 +256,20 @@ offset += snprintf( temp+offset , max - offset , "\n----------------------------
                 }
                 offset += snprintf( temp+offset , max - offset , "\n");
             }
-offset += snprintf( temp+offset , max - offset , "\n--------------------------------Hex Message end--------------------------------\n");
+offset += snprintf( temp+offset , max - offset , "--------------------------------Hex Message end--------------------------------\n");
             break;
         case ALOG_TYPE_BIN:
         default:
-            leftsize = max - 1 - offset;
+            offset += snprintf( temp+offset , max - offset , "[");
+            leftsize = max - 2 - offset;
             if ( len > leftsize ){
                 memcpy( temp + offset , buf , leftsize );
                 offset = max;
             } else {
                 memcpy( temp + offset , buf , len );
-                offset += len + 1;
+                offset += len + 2;
             }
+            temp[offset-2] = ']';
             temp[offset-1] = '\n';
             break;
     }
