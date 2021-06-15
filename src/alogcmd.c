@@ -86,8 +86,8 @@ int alogcmd_load(char *type)
 int alogcmd_print()
 {
     int shmkey = atoi(ENV_ALOG_SHMKEY);
-    char *format_head = "|%-20s|%-8s|%-11s|%-8s|%-40s|%-40s|\n";
-    char *format_body = "|%-20s|%-8s|%-11d|%-8s|%-40s|%-40s|\n";
+    char *format_head = "|%-20s|%-8s|%-11s|%-8s|%-30s|%-30s|%-30s|\n";
+    char *format_body = "|%-20s|%-8s|%-11d|%-8s|%-30s|%-30s|%-30s|\n";
 
     int shmid = shmget( shmkey , sizeof(alog_shm_t) , 0);
     if ( shmid < 0 ){
@@ -110,16 +110,17 @@ int alogcmd_print()
     printf("ALOG_CHECKINTERVAL   :    %d(s)\n",g_shm->checkInterval);
     printf("UPDATE TIMESTAMP     :    %4d%02d%02d %02d:%02d:%02d\n",tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour,tm->tm_min,tm->tm_sec);
     printf("REG CONFIG NUMBER    :    %d\n",g_shm->regNum);
-    printf("======================================================================================================================================\n");
+    printf("=================================================================================================================================================\n");
     printf( format_head ,\
             "regname",\
             "level",\
             "maxsize(MB)",\
             "format",\
-            "curfilepath",\
-            "bakfilepath");
+            "default base path",\
+            "curfilename",\
+            "bakfilename");
     int i = 0;
-    printf("======================================================================================================================================\n");
+    printf("=================================================================================================================================================\n");
     for ( i = 0 ; i < g_shm->regNum ; i ++ ){
         alog_regCfg_t *cfg = &(g_shm->regCfgs[i]);
         printf( format_body ,\
@@ -127,10 +128,11 @@ int alogcmd_print()
             alog_level_string[cfg->level],\
             cfg->maxSize,\
             cfg->format,\
-            cfg->curFilePath_r,\
-            cfg->bakFilePath_r);
+            cfg->defLogBasePath_r,\
+            cfg->curFileNamePattern,\
+            cfg->bakFileNamePattern);
     }
-    printf("======================================================================================================================================\n");
+    printf("=================================================================================================================================================\n");
     return 0;
 }
 /* 

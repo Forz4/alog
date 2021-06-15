@@ -19,7 +19,7 @@ alog_regCfg_t *getRegByName(alog_shm_t *shm , char *regname)
  *  get buffer by regname+cstname
  *  if buffer not found , then try to create a new buffer and a new persist thread
  * */
-alog_buffer_t *getBufferByName( char *regname , char *cstname)
+alog_buffer_t *getBufferByName( char *regname , char *cstname , char *logfilepath)
 {
     if ( strlen(regname) == 0 || strlen(regname) > ALOG_REGNAME_LEN ||\
             strlen(cstname) == 0 || strlen(cstname) > ALOG_CSTNAME_LEN ){
@@ -29,6 +29,18 @@ alog_buffer_t *getBufferByName( char *regname , char *cstname)
     for ( i = 0 ; i < g_alog_ctx->bufferNum ; i ++){
         if ( strcmp( g_alog_ctx->buffers[i].regName , regname ) == 0 && \
                 strcmp( g_alog_ctx->buffers[i].cstName , cstname ) == 0 ){
+
+            /* if input logfilepath , then input path with current logBasePath */
+            if ( logfilepath && strlen(logfilepath) ) {
+                if ( strcmp( logfilepath , g_alog_ctx->buffers[i].logBasePath ) ){
+                    continue;
+                }
+            } else {
+                /* if no path input , then decide if default log path is created */
+                if ( g_alog_ctx->buffers[i].isDefaultPath == 0 ) {
+                    continue;
+                }
+            }
             /*
              * judge if persist thread exist especially in the case of fork situation 
              * after fork , children process get buffer memory but no persist thread
@@ -89,7 +101,7 @@ void alog_update_timer()
 /* 
  *  alloc space for a new buffer
  * */
-int alog_addBuffer( char *regname  , char *cstname , alog_buffer_t **retbuffer)
+int alog_addBuffer( char *regname  , char *cstname , char *logfilepath , alog_buffer_t **retbuffer)
 {
     /* judge if total number exceeds limit */
     if ( g_alog_ctx->bufferNum >= ALOG_BUFFER_NUM ){
@@ -109,9 +121,15 @@ int alog_addBuffer( char *regname  , char *cstname , alog_buffer_t **retbuffer)
     }
     /* check if buffer already exists */
     alog_buffer_t       *buffer;
-    if ( (buffer = getBufferByName( regname , cstname )) != NULL ){
-        ALOG_DEBUG("buffer regname[%s] cstname[%s] alread exists" , regname , cstname);
+    if ( (buffer = getBufferByName( regname , cstname , logfilepath)) != NULL ){
+        ALOG_DEBUG("buffer regname[%s] cstname[%s] logfilepath[%s] alread exists" , regname , cstname , logfilepath==NULL?"":logfilepath);
         return ALOGOK;
+    }
+
+    /* ensure logfilepath exists */
+    if ( (logfilepath  && strlen(logfilepath) && alog_mkdir( logfilepath )) ||\
+            ( alog_mkdir( regCfg->defLogBasePath) ) ){
+        return ALOGERR_MKDIR_FAIL;
     }
 
     /* add buffer */
@@ -120,6 +138,14 @@ int alog_addBuffer( char *regname  , char *cstname , alog_buffer_t **retbuffer)
     g_alog_ctx->bufferNum ++;
     strncpy( buffer->regName , regname , sizeof(buffer->regName) );
     strncpy( buffer->cstName , cstname , sizeof(buffer->cstName) );
+    if ( logfilepath  && strlen(logfilepath) ){
+        buffer->isDefaultPath = 0;
+        strcpy( buffer->logBasePath , logfilepath );
+    }
+    else {
+        buffer->isDefaultPath = 1;
+        strcpy( buffer->logBasePath , regCfg->defLogBasePath );
+    }
 
     /* alloc space for the first node */
     buffer->nodeNum = 1;
@@ -148,9 +174,43 @@ int alog_addBuffer( char *regname  , char *cstname , alog_buffer_t **retbuffer)
     alog_persist_arg_t  *arg = (alog_persist_arg_t *)malloc(sizeof(alog_persist_arg_t));
     strcpy( arg->regName , regname);
     strcpy( arg->cstName , cstname);
+    strcpy( arg->logBasePath , buffer->logBasePath);
+
     pthread_create(&(buffer->consTid), NULL, alog_persist_thread, (void *)arg );
     
     *retbuffer = buffer;
+    return ALOGOK;
+}
+/*
+ * check if directory is valid , if not exists then try to create path
+ * */
+int alog_mkdir( char *dir )
+{
+    int len = strlen( dir );
+    int i = 0;
+    char DirName[ALOG_FILEPATH_LEN];
+
+    if ( access( dir , R_OK ) == 0 ) return ALOGOK;
+
+    memset( DirName , 0x00 , sizeof(DirName) );
+    strncpy( DirName , dir , sizeof( DirName ) - 1);
+    len = strlen( DirName);
+
+    if( DirName[len-1] != '/' ){
+        DirName[len] = '/';
+        len ++;
+    }
+
+    for( i = 1 ; i < len ; i++){
+        if ( DirName[i] == '/' ){
+            DirName[i] = 0;
+            if ( access(DirName , R_OK) != 0 ){
+                if( mkdir( DirName , 0777 ) == -1 ) return ALOGERR_MKDIR_FAIL;
+            }
+            DirName[i] = '/';
+        }
+    }
+
     return ALOGOK;
 }
 /*
@@ -211,8 +271,13 @@ void *alog_persist_thread(void *arg)
 
     char                myregname[20+1];
     char                mycstname[20+1];
+    char                mylogbasepath[ALOG_FILEPATH_LEN+1]; 
+    memset( myregname , 0x00 , sizeof(myregname));
+    memset( mycstname , 0x00 , sizeof(mycstname));
+    memset( mylogbasepath , 0x00 , sizeof(mylogbasepath));
     strcpy( myregname , myarg->regName );
     strcpy( mycstname , myarg->cstName );
+    strcpy( mylogbasepath , myarg->logBasePath );
 
     /* block signals */
     sigset_t            sigset;
@@ -228,7 +293,7 @@ void *alog_persist_thread(void *arg)
     pthread_sigmask(SIG_BLOCK , &sigset , NULL);
 
     /* get buffer by regname+cstname */
-    alog_buffer_t       *buffer = getBufferByName( myregname  , mycstname);
+    alog_buffer_t       *buffer = getBufferByName( myregname  , mycstname , mylogbasepath);
     if ( buffer == NULL ){
         ALOG_DEBUG("fail to get buffer");
         return NULL;
@@ -290,7 +355,7 @@ void *alog_persist_thread(void *arg)
          * 5. persist current node
          * */
         ALOG_DEBUG("persisting node[%d]" , node->index );
-        alog_persist( myregname , mycstname , node );
+        alog_persist( myregname , mycstname , buffer->logBasePath , node );
         ALOG_DEBUG("node[%d] has been written to file" , node->index );
 
         /* 
@@ -312,7 +377,7 @@ void *alog_persist_thread(void *arg)
     alog_regCfg_t *cfg = getRegByName( g_alog_ctx->l_shm , myregname );
     if ( cfg->backupAfterQuit ){
         if ( cfg != NULL ){
-            alog_backupLog( cfg , myregname , mycstname );
+            alog_backupLog( cfg , myregname , mycstname  , buffer->logBasePath);
         }
     }
 
@@ -330,7 +395,7 @@ void *alog_persist_thread(void *arg)
 /*
  *  persisting operation
  * */
-int alog_persist( char *regname , char *cstname , alog_bufNode_t *node)
+int alog_persist( char *regname , char *cstname , char *logbasepath , alog_bufNode_t *node)
 {
     /* get config by regname */
     alog_regCfg_t *cfg = getRegByName( g_alog_ctx->l_shm , regname );
@@ -343,7 +408,7 @@ int alog_persist( char *regname , char *cstname , alog_bufNode_t *node)
     alog_update_timer();
 
     /* get log file name */
-    getFileNameFromFormat( ALOG_CURFILEFORMAT , cfg , regname , cstname , filePath);
+    getFileNameFromFormat( ALOG_CURFILEFORMAT , cfg , regname , cstname , logbasepath , filePath);
 
     FILE *fp = fopen( filePath , "a+");
     fwrite(node->content , node->offset , 1 , fp);
@@ -351,7 +416,7 @@ int alog_persist( char *regname , char *cstname , alog_bufNode_t *node)
     /* judge if file size over limit */
     long filesize = ftell(fp);
     if ( filesize > cfg->maxSize*1024*1024 ){
-        alog_backupLog( cfg , regname , cstname );
+        alog_backupLog( cfg , regname , cstname , logbasepath);
     }
     fclose(fp);
     return ALOGOK;
@@ -359,7 +424,7 @@ int alog_persist( char *regname , char *cstname , alog_bufNode_t *node)
 /*
  *
  * */
-void alog_backupLog( alog_regCfg_t *cfg , char *regname , char *cstname)
+void alog_backupLog( alog_regCfg_t *cfg , char *regname , char *cstname , char *logbasepath)
 {
     char filePath[ALOG_FILEPATH_LEN];
     char bak_filePath[ALOG_FILEPATH_LEN];
@@ -367,8 +432,8 @@ void alog_backupLog( alog_regCfg_t *cfg , char *regname , char *cstname)
     memset(filePath , 0x00 , sizeof(filePath));
     memset(bak_filePath , 0x00 , sizeof(bak_filePath));
     memset(command , 0x00 , sizeof(command));
-    getFileNameFromFormat( ALOG_CURFILEFORMAT , cfg , regname , cstname , filePath);
-    getFileNameFromFormat( ALOG_BAKFILEFORMAT , cfg , regname , cstname , bak_filePath);
+    getFileNameFromFormat( ALOG_CURFILEFORMAT , cfg , regname , cstname , logbasepath , filePath);
+    getFileNameFromFormat( ALOG_BAKFILEFORMAT , cfg , regname , cstname , logbasepath , bak_filePath);
     sprintf( command , "mv %s %s" , filePath , bak_filePath);
     system( command );
     return ;
@@ -376,18 +441,26 @@ void alog_backupLog( alog_regCfg_t *cfg , char *regname , char *cstname)
 /*
  *  get log file name 
  * */
-void getFileNameFromFormat( int type  , alog_regCfg_t *cfg , char *regname , char *cstname , char filePath[ALOG_FILEPATH_LEN] )
+void getFileNameFromFormat( int type  , alog_regCfg_t *cfg , char *regname , char *cstname , char *logbasepath , char filePath[ALOG_FILEPATH_LEN] )
 {
     char        *p =  NULL;
     int         i = 0;
     int         len = 0;
 
-    if ( type == ALOG_CURFILEFORMAT ){
-        p = cfg->curFilePath;
-    } else if ( type == ALOG_BAKFILEFORMAT ){
-        p = cfg->bakFilePath;
+    strcpy( filePath , logbasepath );
+    len = strlen( logbasepath );
+    if ( filePath[ len - 1 ] != '/' ) {
+        filePath[ len ] = '/';
+        i = len + 1;
+    } else {
+        i = len;
     }
-    len = strlen(p);
+
+    if ( type == ALOG_CURFILEFORMAT ){
+        p = cfg->curFileNamePattern;
+    } else if ( type == ALOG_BAKFILEFORMAT ){
+        p = cfg->bakFileNamePattern;
+    }
 
     for ( ; ; ) {
         if ( *p == '\0' ){
@@ -553,44 +626,40 @@ alog_shm_t *alog_loadCfg( char *filepath )
         char cmd[ALOG_COMMAND_LEN];
         FILE *fp_cmd = NULL;
 
-        /* col5 :  current file name patterm */
+        /* col5 :  default log base path */
         if (get_bracket(line , 5 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
         }
-        strcpy( cfg->curFilePath_r , buf );
+        strcpy( cfg->defLogBasePath_r , buf );
         memset( cmd , 0x00 , ALOG_COMMAND_LEN);
         sprintf( cmd , "echo %s" , buf);
         fp_cmd = popen( cmd , "r");
         if ( fp_cmd ){
-            fgets(cfg->curFilePath , ALOG_FILEPATH_LEN , fp_cmd);
-            if ( cfg->curFilePath[strlen(cfg->curFilePath)-1] == '\n' )
-                cfg->curFilePath[strlen(cfg->curFilePath)-1] = '\0';
+            fgets(cfg->defLogBasePath , ALOG_FILEPATH_LEN , fp_cmd);
+            if ( cfg->defLogBasePath[strlen(cfg->defLogBasePath)-1] == '\n' )
+                cfg->defLogBasePath[strlen(cfg->defLogBasePath)-1] = '\0';
             pclose(fp_cmd);
         } else {
-            strncpy(cfg->curFilePath ,buf , ALOG_CFGBUF_LEN);
+            strncpy(cfg->defLogBasePath ,buf , ALOG_CFGBUF_LEN);
         }
 
-        /*  col6 : backup file name patterm */
+        /*  col6 : current file name patterm */
         if (get_bracket(line , 6 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
         }
-        strcpy( cfg->bakFilePath_r , buf );
-        memset( cmd , 0x00 , ALOG_COMMAND_LEN);
-        sprintf( cmd , "echo %s" , buf);
-        fp_cmd = popen( cmd , "r");
-        if ( fp_cmd ){
-            fgets(cfg->bakFilePath , ALOG_FILEPATH_LEN , fp_cmd);
-            if ( cfg->bakFilePath[strlen(cfg->bakFilePath)-1] == '\n' )
-                cfg->bakFilePath[strlen(cfg->bakFilePath)-1] = '\0';
-            pclose(fp_cmd);
-        } else {
-            strncpy(cfg->bakFilePath ,buf , ALOG_CFGBUF_LEN);
-        }
+        strcpy( cfg->curFileNamePattern , buf );
 
-        /*  col7 : force backup after quit */
+        /*  col7 : backup file name patterm */
         if (get_bracket(line , 7 , buf , ALOG_CFGBUF_LEN )){
+            fclose(fp);
+            return NULL;
+        }
+        strcpy( cfg->bakFileNamePattern , buf );
+
+        /*  col8 : force backup after quit */
+        if (get_bracket(line , 8 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
         }

@@ -73,6 +73,7 @@ typedef struct alog_persist_arg{
     struct alog_context *ctx;                                   /* context pointer                  */
     char                regName[ALOG_REGNAME_LEN+1];            /* regname                          */
     char                cstName[ALOG_CSTNAME_LEN+1];            /* cstname                          */
+    char                logBasePath[ALOG_FILEPATH_LEN+1];
 } alog_persist_arg_t;
 
 /* node */
@@ -88,6 +89,8 @@ typedef struct alog_bufNode{
 
 /* buffer */
 typedef struct alog_buffer{
+    char                logBasePath[ALOG_FILEPATH_LEN+1];       /* input log file path              */
+    int                 isDefaultPath;                          /* set to 1 if the base path is def */
     char                regName[ALOG_REGNAME_LEN+1];            /* regname                          */
     char                cstName[ALOG_CSTNAME_LEN+1];            /* cstname                          */
     pthread_t           consTid;                                /* consumer thread id               */
@@ -102,10 +105,10 @@ typedef struct alog_regCfg{
     short               level;                                  /* log level                        */
     int                 maxSize;                                /* file size limit                  */
     char                format[ALOG_FORMAT_LEN+1];              /* log prefix pattern               */
-    char                curFilePath_r[ALOG_FILEPATH_LEN+1];     /* current filepath pattern raw     */
-    char                curFilePath[ALOG_FILEPATH_LEN+1];       /* current filepath pattern real    */
-    char                bakFilePath_r[ALOG_FILEPATH_LEN+1];     /* backup filepath pattern raw      */
-    char                bakFilePath[ALOG_FILEPATH_LEN+1];       /* backup filepath pattern real     */
+    char                defLogBasePath_r[ALOG_FILEPATH_LEN+1];  /* default raw log base path        */
+    char                defLogBasePath[ALOG_FILEPATH_LEN+1];    /* default log base path            */
+    char                curFileNamePattern[ALOG_FILEPATH_LEN+1];/* current file name pattern        */
+    char                bakFileNamePattern[ALOG_FILEPATH_LEN+1];/* backup file name pattern         */
     int                 backupAfterQuit;                        /*                                  */
 } alog_regCfg_t;
 

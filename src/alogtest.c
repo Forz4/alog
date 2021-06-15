@@ -9,10 +9,11 @@ int     LENGTH = 50;
 char    *message;
 char    REGNAME[20+1] = "TEST0";
 int     MODE = 1;
+char    logfilepath[ALOG_FILEPATH_LEN];
 
 void print_help()
 {
-    printf("alogtest [-r regname][-c count][-i interval][-l length][-t thread number][-A|H|B][-h]\n");
+    printf("alogtest [-r regname][-p direct_log_path][-c count][-i interval][-l length][-t thread number][-A|H|B][-h]\n");
     exit(0);
 }
 void *func(void *arg)
@@ -22,8 +23,12 @@ void *func(void *arg)
     memset( cstname , 0x00 , sizeof(cstname) );
     sprintf(cstname , "%ld" , (long)getpid() );
     for ( i = 0 ; i < COUNT ; i ++){
-        if ( MODE == 1 )
-            ALOG_INFASC( REGNAME , cstname , "" , "%s" , message);
+        if ( MODE == 1 ){
+            if ( strlen(logfilepath) )
+                ALOG_INFASC( REGNAME , cstname , "" , logfilepath , "%s" , message);
+            else
+                ALOG_INFASC( REGNAME , cstname , "" , NULL , "%s" , message);
+        }
         else if ( MODE == 2 )
             ALOG_INFHEX( REGNAME , cstname , "" , message , LENGTH);
         else if ( MODE == 3 )
@@ -35,10 +40,13 @@ void *func(void *arg)
 int main(int argc , char *argv[])
 {
     int op = 0;
-    while ( (op = getopt(argc , argv , "r:c:i:l:t:AHBh") ) > 0 ){
+    while ( (op = getopt(argc , argv , "r:p:c:i:l:t:AHBh") ) > 0 ){
         switch(op){
             case 'r':
                 strcpy( REGNAME , optarg);
+                break;
+            case 'p':
+                strcpy( logfilepath , optarg);
                 break;
             case 'c':
                 COUNT = atoi(optarg);
@@ -80,6 +88,7 @@ int main(int argc , char *argv[])
     }
     message[i] = '\0';
 
+/* macros */
     for( i = 0 ; i < THREADNUM ; i ++ ){
         pthread_create( &tids[i] , NULL , func , 0 );
     }

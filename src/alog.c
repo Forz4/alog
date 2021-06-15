@@ -119,6 +119,7 @@ int alog_writelog_t (
         char            *modname,
         char            *file,
         int             lineno,
+        char            *logfilepath,
         char            *buf,
         int             len,
         char            *fmt , ...)
@@ -143,8 +144,8 @@ int alog_writelog_t (
 
     /* get buffer for current regname+cstname , if not exist then create one */
     alog_buffer_t   *buffer = NULL;
-    if( (buffer = getBufferByName( regname , cstname )) == NULL ){
-        ret = alog_addBuffer( regname  , cstname , &buffer);
+    if( (buffer = getBufferByName( regname , cstname , logfilepath )) == NULL ){
+        ret = alog_addBuffer( regname  , cstname , logfilepath , &buffer);
         if ( ret ){
             alog_unlock();
             return ret;
