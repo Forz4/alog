@@ -66,8 +66,8 @@ ${ALOG_HOME}/cfg/alog.cfg
 #    %m  ：minute(mm)
 #    %s  ：second(ss)
 #    %P  ：PID
-# 6. backup filename pattern
-# 7. forcebackup
+# 7. backup filename pattern
+# 8. forcebackup
 #    set to 1 if you want to force backup after process quit
 [TEST0][LOGINF][1][0111111][${ALOG_HOME}/log][%R.%C.log][%R.%C.log.%Y%M%D%h%m%s][1]
 ```

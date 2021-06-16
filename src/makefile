@@ -1,34 +1,36 @@
-all:  alogcmd libalog.a alogtest
-
-clean:
-	@-rm *.o
-	@> .debug.tmp
-
-debug:
-	@echo $(DEBUG) > .debug.tmp
-
 DEBUG = -D ALOG_DEBUG_MODE
 INCPATH = -I ../include
+LIBPATH = ../lib
+BINPATH = ../bin
 LIBS = -lpthread
-CFLAGS = -Wall -std=gnu99 -fPIC
+CFLAGS = -Wall -std=gnu99 -fPIC -g
+CC = @gcc
+MV = @mv
+AR = @ar -ruc
+RM = @-rm -f
+ECHO = @echo
+
+all:  libalog.a alogtest alogcmd
+
+clean:
+	$(RM) *.o
+	$(RM) $(BINPATH)/alogtest $(BINPATH)/alogcmd $(LIBPATH)/libalog.a
+	$(ECHO) "" > .debug.tmp
+
+debug:
+	$(ECHO) $(DEBUG) > .debug.tmp
+
+.c.o:
+	$(CC) -c $< $(INCPATH) $(CFLAGS) `cat .debug.tmp`
 
 alogcmd:	alogcmd.o alogfun.o
-	@gcc -o alogcmd alogcmd.o alogfun.o $(LIBS)
-	@mv alogcmd ../bin/
+	$(CC) -o $@ $^ $(LIBS)
+	$(MV) $@ $(BINPATH)
 
-alogcmd.o:	alogcmd.c
-	@gcc -c alogcmd.c $(INCPATH) $(CFLAGS) `cat .debug.tmp`
+libalog.a: alog.o alogfun.o alogcmd.o logpub.o
+	$(AR) $@ $^ 
+	$(MV) $@ $(LIBPATH)
 
-alogfun.o:	alogfun.c
-	@gcc -c alogfun.c $(INCPATH) $(CFLAGS) `cat .debug.tmp`
-
-alog.o:	alog.c
-	@gcc -c alog.c $(INCPATH) $(CFLAGS) `cat .debug.tmp`
-
-libalog.a: alog.o alogfun.o alogcmd.o 
-	@ar -ruc libalog.a alog.o alogfun.o alogcmd.o
-	@mv libalog.a ../lib/
-
-alogtest:	alogtest.c
-	@gcc -o alogtest alogtest.c $(INCPATH) -lalog -L ../lib $(LIBS) $(CFLAGS)  `cat .debug.tmp`
-	@mv alogtest ../bin/
+alogtest:	alogtest.o
+	$(CC) -o $@ $< -L $(LIBPATH) -lalog $(LIBS)
+	$(MV) $@ $(BINPATH) 

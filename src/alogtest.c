@@ -30,9 +30,9 @@ void *func(void *arg)
                 ALOG_INFASC( REGNAME , cstname , "" , NULL , "%s" , message);
         }
         else if ( MODE == 2 )
-            ALOG_INFHEX( REGNAME , cstname , "" , message , LENGTH);
+            ALOG_INFHEX( REGNAME , cstname , "" , logfilepath , message , LENGTH);
         else if ( MODE == 3 )
-            ALOG_INFBIN( REGNAME , cstname , "" , message , LENGTH);
+            ALOG_INFBIN( REGNAME , cstname , "" , logfilepath , message , LENGTH);
         if ( INTERVAL)  usleep(INTERVAL);
     }
     return NULL;
