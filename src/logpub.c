@@ -10,6 +10,9 @@ int log_end()
 {
     return alog_close();
 }
+void log_detach()
+{
+}
 
 void writelog_t(char *regname,\
                 char *cstname,\

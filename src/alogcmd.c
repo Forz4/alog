@@ -129,8 +129,8 @@ int alogcmd_print()
             cfg->maxSize,\
             cfg->format,\
             cfg->defLogBasePath_r,\
-            cfg->curFileNamePattern,\
-            cfg->bakFileNamePattern);
+            cfg->curFileNamePattern_r,\
+            cfg->bakFileNamePattern_r);
     }
     printf("=================================================================================================================================================\n");
     return 0;

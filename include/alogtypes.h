@@ -95,6 +95,7 @@ typedef struct alog_buffer{
     char                cstName[ALOG_CSTNAME_LEN+1];            /* cstname                          */
     pthread_t           consTid;                                /* consumer thread id               */
     int                 nodeNum;                                /* number of ndoes                  */
+    alog_persist_arg_t  arg;                                    /* argument passwd to thread        */
     struct alog_bufNode *prodPtr;                               /* productor pointer                */
     struct alog_bufNode *consPtr;                               /* consumer pointer                 */
 }alog_buffer_t;
@@ -107,7 +108,9 @@ typedef struct alog_regCfg{
     char                format[ALOG_FORMAT_LEN+1];              /* log prefix pattern               */
     char                defLogBasePath_r[ALOG_FILEPATH_LEN+1];  /* default raw log base path        */
     char                defLogBasePath[ALOG_FILEPATH_LEN+1];    /* default log base path            */
+    char                curFileNamePattern_r[ALOG_FILEPATH_LEN+1];
     char                curFileNamePattern[ALOG_FILEPATH_LEN+1];/* current file name pattern        */
+    char                bakFileNamePattern_r[ALOG_FILEPATH_LEN+1];
     char                bakFileNamePattern[ALOG_FILEPATH_LEN+1];/* backup file name pattern         */
     int                 backupAfterQuit;                        /*                                  */
 } alog_regCfg_t;

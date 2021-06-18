@@ -171,7 +171,7 @@ int alog_addBuffer( char *regname  , char *cstname , char *logfilepath , alog_bu
     node->prev = node;
 
     /* create persist thread */
-    alog_persist_arg_t  *arg = (alog_persist_arg_t *)malloc(sizeof(alog_persist_arg_t));
+    alog_persist_arg_t  *arg = &(buffer->arg);
     strcpy( arg->regName , regname);
     strcpy( arg->cstName , cstname);
     strcpy( arg->logBasePath , buffer->logBasePath);
@@ -649,14 +649,36 @@ alog_shm_t *alog_loadCfg( char *filepath )
             fclose(fp);
             return NULL;
         }
-        strcpy( cfg->curFileNamePattern , buf );
+        strcpy( cfg->curFileNamePattern_r , buf );
+        memset( cmd , 0x00 , ALOG_COMMAND_LEN);
+        sprintf( cmd , "echo %s" , buf);
+        fp_cmd = popen( cmd , "r");
+        if ( fp_cmd ){
+            fgets(cfg->curFileNamePattern , ALOG_FILEPATH_LEN , fp_cmd);
+            if ( cfg->curFileNamePattern[strlen(cfg->curFileNamePattern)-1] == '\n' )
+                cfg->curFileNamePattern[strlen(cfg->curFileNamePattern)-1] = '\0';
+            pclose(fp_cmd);
+        } else {
+            strncpy(cfg->curFileNamePattern ,buf , ALOG_CFGBUF_LEN);
+        }
 
         /*  col7 : backup file name patterm */
         if (get_bracket(line , 7 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
         }
-        strcpy( cfg->bakFileNamePattern , buf );
+        strcpy( cfg->bakFileNamePattern_r , buf );
+        memset( cmd , 0x00 , ALOG_COMMAND_LEN);
+        sprintf( cmd , "echo %s" , buf);
+        fp_cmd = popen( cmd , "r");
+        if ( fp_cmd ){
+            fgets(cfg->bakFileNamePattern , ALOG_FILEPATH_LEN , fp_cmd);
+            if ( cfg->bakFileNamePattern[strlen(cfg->bakFileNamePattern)-1] == '\n' )
+                cfg->bakFileNamePattern[strlen(cfg->bakFileNamePattern)-1] = '\0';
+            pclose(fp_cmd);
+        } else {
+            strncpy(cfg->bakFileNamePattern ,buf , ALOG_CFGBUF_LEN);
+        }
 
         /*  col8 : force backup after quit */
         if (get_bracket(line , 8 , buf , ALOG_CFGBUF_LEN )){

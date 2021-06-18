@@ -4,6 +4,7 @@
 
 int log_init();
 int log_end();
+void log_datech();
 void writelog_t(char *regname,\
                 char *cstname,\
                 char *modname,\

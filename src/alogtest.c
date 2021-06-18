@@ -95,6 +95,7 @@ int main(int argc , char *argv[])
     for( i = 0 ; i < THREADNUM ; i ++ ){
         pthread_join( tids[i] ,  NULL );
     }
+    free(message);
 
     alog_close();
     return 0;
