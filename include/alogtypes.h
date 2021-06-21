@@ -126,6 +126,7 @@ typedef struct alog_context{
     struct alog_timer   timer;                                  /* timer                            */
     int                 closeFlag;                              /* close flag                       */
     pthread_t           updTid;                                 /* thread id of update thread       */
+    int                 statusless;                             /* statusless sign                  */
 }alog_context_t;
 
 /* context */

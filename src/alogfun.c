@@ -236,22 +236,43 @@ void *alog_update_thread(void *arg)
     pthread_sigmask(SIG_BLOCK , &sigset , NULL);
     
     while ( g_alog_ctx->closeFlag != 1 ){
-        alog_lock();
-        gettimeofday( &tv , NULL );
-        /* if share memory key not exists , give up updating */
-        if ( (shmid = shmget( g_alog_ctx->l_shm->shmKey , sizeof(alog_shm_t) , 0 )) > 0 ){
-            /* if shmid changes , it means share memory was recreated , then reattach to share memory */
-            if ( shmid != g_alog_ctx->l_shm->shmId ){
-                ALOG_DEBUG("shmid changes , reattach to share memory");
-                g_alog_ctx->g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 );
+        if ( g_alog_ctx->statusless == 1 ){
+            char cfgFile[ALOG_FILEPATH_LEN+1];
+            memset( cfgFile , 0x00 , sizeof(cfgFile) );
+            sprintf( cfgFile , "%s/cfg/alog.cfg" , getenv("ALOG_HOME"));
+            struct stat buf;
+            if ( stat( cfgFile , &buf) == 0 ){
+                if ( buf.st_mtime != g_alog_ctx->l_shm->updTime ){
+                    alog_lock();
+                    g_alog_ctx->l_shm = alog_loadCfg( cfgFile );
+                    if ( g_alog_ctx->l_shm == NULL ){
+                        ALOG_DEBUG("fail to load config\n");
+                    } else {
+                        g_alog_ctx->l_shm->updTime = buf.st_mtime;
+                    }
+                    alog_unlock();
+                }
             }
-            /* check updTime */
-            if ( g_alog_ctx->l_shm->updTime != g_alog_ctx->g_shm->updTime ){
-                ALOG_DEBUG("share memory was updated , sync config , updTime[%ld]" , g_alog_ctx->g_shm->updTime);
-                memcpy( g_alog_ctx->l_shm , g_alog_ctx->g_shm , sizeof( alog_shm_t) ) ;
+        } else {
+            alog_lock();
+            gettimeofday( &tv , NULL );
+            /* if share memory key not exists , give up updating */
+            if ( g_alog_ctx->statusless == 0 ){
+                if ( (shmid = shmget( g_alog_ctx->l_shm->shmKey , sizeof(alog_shm_t) , 0 )) > 0 ){
+                    /* if shmid changes , it means share memory was recreated , then reattach to share memory */
+                    if ( shmid != g_alog_ctx->l_shm->shmId ){
+                        ALOG_DEBUG("shmid changes , reattach to share memory");
+                        g_alog_ctx->g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 );
+                    }
+                    /* check updTime */
+                    if ( g_alog_ctx->l_shm->updTime != g_alog_ctx->g_shm->updTime ){
+                        ALOG_DEBUG("share memory was updated , sync config , updTime[%ld]" , g_alog_ctx->g_shm->updTime);
+                        memcpy( g_alog_ctx->l_shm , g_alog_ctx->g_shm , sizeof( alog_shm_t) ) ;
+                    }
+                }
+            alog_unlock();
             }
         }
-        alog_unlock();
         sleep(g_alog_ctx->l_shm->checkInterval);
     }
     return NULL;
