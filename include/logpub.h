@@ -1,10 +1,9 @@
 #ifndef _LOGPUB_H_
 #define _LOGPUB_H_
-#include "logpub.h"
 
 int log_init();
 int log_end();
-void log_datech();
+void log_detach();
 void writelog_t(char *regname,\
                 char *cstname,\
                 char *modname,\

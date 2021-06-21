@@ -15,8 +15,11 @@ ${ALOG_HOME}/env/alog.env
 ```shell
 # ALOG HOME Directory , mandatory
 export ALOG_HOME=~/development/alog
-# ALOG share memory key , mandatory
+# ALOG share memory key , optional.
+# if set than alog.cfg is loaded into share memory
+# if unset , client process reads congfigs from file directly
 export ALOG_SHMKEY=1234
+#unset ALOG_SHMKEY
 # add alogcmd to $PATH
 export PATH=${PATH}:${ALOG_HOME}/bin
 # single block size for persist thread to write , unit is KB
@@ -55,6 +58,7 @@ ${ALOG_HOME}/cfg/alog.cfg
 #    col6: log level
 #    col7: filename+lineno
 # 5. default base path
+#    ${} : environment variabale
 # 6. current filename pattern
 #    ${} : environment variabale
 #    %R  : regname

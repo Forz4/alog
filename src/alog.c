@@ -13,22 +13,24 @@ int alog_initContext()
     key_t           shmkey;
     int             shmid = 0;
     alog_shm_t      *g_shm = NULL;
+    int             statusless = 0;
 
     /* get shmkey from environment */
     ENV_SHMKEY = getenv("ALOG_SHMKEY");
     if ( ( ENV_SHMKEY = getenv("ALOG_SHMKEY") ) == NULL ){
         ALOG_DEBUG("fail to get environment variable [ALOG_SHMKEY]\n");
-        return ALOGERR_GETENV_FAIL;
-    }
-
-    shmkey = atoi(ENV_SHMKEY);
-    if ( ( shmid = shmget( shmkey , sizeof(alog_shm_t) , 0) ) < 0 ){
-        ALOG_DEBUG("shmget fail , shmkey[%s] , shmid[%d] , errmsg[%s]!\n" , ENV_SHMKEY , shmid  , strerror(errno));
-        return ALOGERR_SHMGET_FAIL;
-    } 
-    if ( (g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 ))  == NULL ){
-        ALOG_DEBUG("shmat fail , shmkey[%s] , shmid[%d]! , errmsg[%s]\n" , ENV_SHMKEY , shmid  , strerror(errno));
-        return ALOGERR_SHMAT_FAIL;
+        ALOG_DEBUG("start in statusless mode\n");
+        statusless = 1;
+    } else {
+        shmkey = atoi(ENV_SHMKEY);
+        if ( ( shmid = shmget( shmkey , sizeof(alog_shm_t) , 0) ) < 0 ){
+            ALOG_DEBUG("shmget fail , shmkey[%s] , shmid[%d] , errmsg[%s]!\n" , ENV_SHMKEY , shmid  , strerror(errno));
+            return ALOGERR_SHMGET_FAIL;
+        } 
+        if ( (g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 ))  == NULL ){
+            ALOG_DEBUG("shmat fail , shmkey[%s] , shmid[%d]! , errmsg[%s]\n" , ENV_SHMKEY , shmid  , strerror(errno));
+            return ALOGERR_SHMAT_FAIL;
+        }
     }
     
     /* alloc space for context */
@@ -63,12 +65,29 @@ int alog_initContext()
         return ALOGERR_MALLOC_FAIL;
     }
 
-    ctx->g_shm = g_shm;
+    if ( statusless == 0 ){
+        ctx->g_shm = g_shm;
+        memcpy( g_alog_ctx->l_shm , g_shm , sizeof(alog_shm_t) );
+        g_alog_ctx->statusless = 0;
+    } else {
+        g_alog_ctx->statusless = 1;
+        char cfgFile[ALOG_FILEPATH_LEN+1];
+        memset( cfgFile , 0x00 , sizeof(cfgFile) );
+        sprintf( cfgFile , "%s/cfg/alog.cfg" , getenv("ALOG_HOME"));
+        ctx->l_shm = alog_loadCfg( cfgFile );
+        if ( ctx->l_shm == NULL ){
+            ALOG_DEBUG("fail to load config\n");
+            return ALOGERR_LOADCFG_FAIL;
+        }
+        struct stat buf;
+        if ( stat( cfgFile , &buf) == 0 )
+            ctx->l_shm->updTime = buf.st_mtime;
+    }
+
     ctx->bufferNum = 0;
     memset(ctx->buffers , 0x00 , sizeof(ctx->buffers));
     ctx->closeFlag = 0;
     alog_update_timer();
-    memcpy( g_alog_ctx->l_shm , g_shm , sizeof(alog_shm_t) );
 
     /* create update thread */
     pthread_create(&(g_alog_ctx->updTid), NULL, alog_update_thread, NULL );
