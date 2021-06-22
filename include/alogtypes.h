@@ -27,10 +27,10 @@
 #define ALOG_NODE_FULL              1
 #define ALOG_NODE_USED              2
 /* default config */
-#define ALOG_DEF_MAXMEMORYSIZE      4
-#define ALOG_DEF_SINGLEBLOCKSIZE    4
+#define ALOG_DEF_MAXMEMORYSIZE      8
+#define ALOG_DEF_SINGLEBLOCKSIZE    8
 #define ALOG_DEF_FLUSHINTERVAL      2
-#define ALOG_DEF_CHECKINTERVAL      5
+#define ALOG_DEF_CHECKINTERVAL      2
 /* log type */
 #define ALOG_TYPE_ASC               1
 #define ALOG_TYPE_BIN               2

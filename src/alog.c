@@ -117,7 +117,8 @@ int alog_close()
     ALOG_DEBUG("all threads joined");
 
     /* detach share memory */
-    shmdt(g_alog_ctx->g_shm);
+    if ( g_alog_ctx->statusless == 0 )
+        shmdt(g_alog_ctx->g_shm);
 
     /* clean up resources */
     pthread_mutex_destroy(&(g_alog_ctx->mutex));
