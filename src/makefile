@@ -1,5 +1,7 @@
 DEBUG = -D ALOG_DEBUG_MODE
-INCPATH = -I ../include
+SYNC = -D ALOG_SYNC_MODE
+TEMPFLAG = .debug.tmp
+INCPATH = ../include
 LIBPATH = ../lib
 BINPATH = ../bin
 LIBS = -lpthread
@@ -15,13 +17,16 @@ all:  libalog.a alogtest alogcmd
 clean:
 	$(RM) *.o
 	$(RM) $(BINPATH)/alogtest $(BINPATH)/alogcmd $(LIBPATH)/libalog.a
-	$(ECHO) "" > .debug.tmp
+	$(ECHO) "" > $(TEMPFLAG)
 
 debug:
-	$(ECHO) $(DEBUG) > .debug.tmp
+	$(ECHO) $(DEBUG) >> $(TEMPFLAG)
+
+sync:
+	$(ECHO) $(SYNC) >> $(TEMPFLAG)
 
 .c.o:
-	$(CC) -c $< $(INCPATH) $(CFLAGS) `cat .debug.tmp`
+	$(CC) -c $< -I$(INCPATH) $(CFLAGS) `cat $(TEMPFLAG)`
 
 alogcmd:	alogcmd.o alogfun.o
 	$(CC) -o $@ $^ $(LIBS)

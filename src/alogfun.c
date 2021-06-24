@@ -256,6 +256,14 @@ int alog_mkdir( char *dir )
  */
 void *alog_update_thread(void *arg)
 {
+
+#ifndef ALOG_SYNC_MODE
+    ALOG_DEBUG("update thread start in NON-SYNC MODE");
+    pthread_detach(pthread_self());
+#else
+    ALOG_DEBUG("update thread start in SYNC MODE");
+#endif
+
     struct          timeval  tv;
     int             shmid = 0;
 
@@ -336,7 +344,13 @@ void *alog_update_thread(void *arg)
  */
 void *alog_persist_thread(void *arg)
 {
-    ALOG_DEBUG("persist thread start");
+
+#ifndef ALOG_SYNC_MODE
+    ALOG_DEBUG("persist thread start in NON-SYNC MODE");
+    pthread_detach(pthread_self());
+#else
+    ALOG_DEBUG("persist thread start in SYNC MODE");
+#endif
 
     /**
      * get parameter

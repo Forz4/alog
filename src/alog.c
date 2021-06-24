@@ -22,8 +22,7 @@ int alog_initContext()
      * if ALOG_SHMKEY is not set , then start in statusless mode
      */
     if ( ( ENV_SHMKEY = getenv("ALOG_SHMKEY") ) == NULL ){
-        ALOG_DEBUG("fail to get environment variable [ALOG_SHMKEY]\n");
-        ALOG_DEBUG("start in statusless mode\n");
+        ALOG_DEBUG("start in statusless mode");
         statusless = 1;
     } else {
         /**
@@ -31,11 +30,11 @@ int alog_initContext()
          */
         shmkey = atoi(ENV_SHMKEY);
         if ( ( shmid = shmget( shmkey , sizeof(alog_shm_t) , 0) ) < 0 ){
-            ALOG_DEBUG("shmget fail , shmkey[%s] , shmid[%d] , errmsg[%s]!\n" , ENV_SHMKEY , shmid  , strerror(errno));
+            ALOG_DEBUG("shmget fail , shmkey[%s] , shmid[%d] , errmsg[%s]!" , ENV_SHMKEY , shmid  , strerror(errno));
             return ALOGERR_SHMGET_FAIL;
         } 
         if ( (g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 ))  == NULL ){
-            ALOG_DEBUG("shmat fail , shmkey[%s] , shmid[%d]! , errmsg[%s]\n" , ENV_SHMKEY , shmid  , strerror(errno));
+            ALOG_DEBUG("shmat fail , shmkey[%s] , shmid[%d]! , errmsg[%s]" , ENV_SHMKEY , shmid  , strerror(errno));
             return ALOGERR_SHMAT_FAIL;
         }
     }
@@ -45,7 +44,7 @@ int alog_initContext()
      */
     alog_context_t  *ctx = (alog_context_t *)malloc(sizeof(alog_context_t));
     if ( ctx == NULL ) {
-        ALOG_DEBUG("fail to malloc [alog_context_t]\n");
+        ALOG_DEBUG("fail to malloc [alog_context_t]");
         if ( statusless == 0 )
             shmdt(g_shm);
         return ALOGERR_MALLOC_FAIL;
@@ -61,7 +60,7 @@ int alog_initContext()
      */
     if ( pthread_mutex_init(&(ctx->mutex), NULL) )
     {
-        ALOG_DEBUG("fail to initialize mutex\n");
+        ALOG_DEBUG("fail to initialize mutex");
         if ( statusless == 0 )
             shmdt(g_shm);
         return ALOGERR_INITMUTEX_FAIL;
@@ -100,7 +99,7 @@ int alog_initContext()
         }
         ctx->l_shm = alog_loadCfg( cfgFile );
         if ( ctx->l_shm == NULL ){
-            ALOG_DEBUG("fail to load config\n");
+            ALOG_DEBUG("fail to load config");
             return ALOGERR_LOADCFG_FAIL;
         }
         struct stat buf;
@@ -141,13 +140,16 @@ int alog_close()
     /**
      * join all threadsa
      */
+#ifdef ALOG_SYNC_MODE
     int i = 0;
     for ( i = 0 ; i < g_alog_ctx->bufferNum ; i ++ ){
         pthread_join(g_alog_ctx->buffers[i].consTid, NULL);
     }
     pthread_join(g_alog_ctx->updTid, NULL);
-
     ALOG_DEBUG("all threads joined");
+#else
+    usleep(500000);
+#endif
 
     /**
      * detach share memory

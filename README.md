@@ -79,10 +79,13 @@ ${ALOG_HOME}/cfg/alog.cfg
 ## Compiling
 
 ```shell
-# for release version
-cd ${ALOG_HOME}/src & make clean all
-# for debug version
+# there are 2 special compiling mode:
+# for debug version which prints all debug information to stdout , use:
 cd ${ALOG_HOME}/src & make clean debug all
+# for sync version which all children threads will be joined in alog_close() , use:
+cd ${ALOG_HOME}/src & make clean sync all
+# normally you should just use:
+cd ${ALOG_HOME}/src & make clean all
 ```
 
 
