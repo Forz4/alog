@@ -1,12 +1,15 @@
 #include "alog.h"
 #include "alogfun.h"
 #include "alogtypes.h"
-/*
- * Initialize Context
- * */
+/**
+ * [alog_initContext Initialize context]
+ * @return [0 for success]
+ */
 int alog_initContext()
 {
-    /* clean up previous context , especially in fork situation */
+    /**
+     * clean up previous context , especially in fork situation
+     */
     alog_cleanContext();
 
     char            *ENV_SHMKEY = NULL;
@@ -15,13 +18,17 @@ int alog_initContext()
     alog_shm_t      *g_shm = NULL;
     int             statusless = 0;
 
-    /* get shmkey from environment */
-    ENV_SHMKEY = getenv("ALOG_SHMKEY");
+    /**
+     * if ALOG_SHMKEY is not set , then start in statusless mode
+     */
     if ( ( ENV_SHMKEY = getenv("ALOG_SHMKEY") ) == NULL ){
         ALOG_DEBUG("fail to get environment variable [ALOG_SHMKEY]\n");
         ALOG_DEBUG("start in statusless mode\n");
         statusless = 1;
     } else {
+        /**
+         * if ALOG_SHMKEY is set , then attach to share memory
+         */
         shmkey = atoi(ENV_SHMKEY);
         if ( ( shmid = shmget( shmkey , sizeof(alog_shm_t) , 0) ) < 0 ){
             ALOG_DEBUG("shmget fail , shmkey[%s] , shmid[%d] , errmsg[%s]!\n" , ENV_SHMKEY , shmid  , strerror(errno));
@@ -33,35 +40,49 @@ int alog_initContext()
         }
     }
     
-    /* alloc space for context */
+    /**
+     * allocate space for context
+     */
     alog_context_t  *ctx = (alog_context_t *)malloc(sizeof(alog_context_t));
     if ( ctx == NULL ) {
         ALOG_DEBUG("fail to malloc [alog_context_t]\n");
-        shmdt(g_shm);
+        if ( statusless == 0 )
+            shmdt(g_shm);
         return ALOGERR_MALLOC_FAIL;
     }
 
-    /* set g_alog_ctx */
+    /**
+     * set g_alog_ctx
+     */
     g_alog_ctx = ctx;
 
-    /* initialize mutex */
+    /**
+     * initialize mutex
+     */
     if ( pthread_mutex_init(&(ctx->mutex), NULL) )
     {
         ALOG_DEBUG("fail to initialize mutex\n");
-        shmdt(g_shm);
+        if ( statusless == 0 )
+            shmdt(g_shm);
         return ALOGERR_INITMUTEX_FAIL;
     }
 
-    /* initialize cond */
+    /**
+     * initialize cond
+     */
     if ( pthread_cond_init(&(ctx->cond_persist), NULL))
     {
-        shmdt(g_shm);
+        if ( statusless == 0 )
+            shmdt(g_shm);
         return ALOGERR_INITCOND_FAIL;
     }
 
-    /* initialize space for share memory struct */
+    /**
+     * initialize space for share memory struct
+     */
     if ( (ctx->l_shm = (alog_shm_t *)malloc(sizeof(alog_shm_t))) == NULL ){
-        shmdt(g_shm);
+        if ( statusless == 0 )
+            shmdt(g_shm);
         return ALOGERR_MALLOC_FAIL;
     }
 
@@ -74,6 +95,9 @@ int alog_initContext()
         char cfgFile[ALOG_FILEPATH_LEN+1];
         memset( cfgFile , 0x00 , sizeof(cfgFile) );
         sprintf( cfgFile , "%s/cfg/alog.cfg" , getenv("ALOG_HOME"));
+        if ( access( cfgFile , R_OK ) ){
+            return ALOGERR_LOADCFG_FAIL;            
+        }
         ctx->l_shm = alog_loadCfg( cfgFile );
         if ( ctx->l_shm == NULL ){
             ALOG_DEBUG("fail to load config\n");
@@ -89,25 +113,34 @@ int alog_initContext()
     ctx->closeFlag = 0;
     alog_update_timer();
 
-    /* create update thread */
+    /**
+     * create update thread
+     */
     pthread_create(&(g_alog_ctx->updTid), NULL, alog_update_thread, NULL );
 
     return 0;
 }
-/*
- *  Clena Up
- * */
+/**
+ * [alog_close close and destroy context]
+ * @return [0 for success]
+ */
 int alog_close()
 {
-    /* set close flag */
+    /**
+     * set close flag
+     */
     alog_lock();
     g_alog_ctx->closeFlag = 1;
     alog_unlock();
 
-    /* signal all threads */
+    /**
+     * signal all threads
+     */
     pthread_cond_broadcast(&(g_alog_ctx->cond_persist));
     
-    /* join all threadsa */
+    /**
+     * join all threadsa
+     */
     int i = 0;
     for ( i = 0 ; i < g_alog_ctx->bufferNum ; i ++ ){
         pthread_join(g_alog_ctx->buffers[i].consTid, NULL);
@@ -116,11 +149,15 @@ int alog_close()
 
     ALOG_DEBUG("all threads joined");
 
-    /* detach share memory */
+    /**
+     * detach share memory
+     */
     if ( g_alog_ctx->statusless == 0 )
         shmdt(g_alog_ctx->g_shm);
 
-    /* clean up resources */
+    /**
+     * clean up resources
+     */
     pthread_mutex_destroy(&(g_alog_ctx->mutex));
     pthread_cond_destroy(&(g_alog_ctx->cond_persist));
     free(g_alog_ctx->l_shm);
@@ -128,9 +165,22 @@ int alog_close()
     
     return 0;
 }
-/*
- *  main interface for logging
- * */
+/**
+ * [alog_writelog_t  main interface for logging]
+ * @param  logtype     [ALOG_TYPE_BIN/ALOG_TYPE_ASC/ALOG_TYPE/HEX]
+ * @param  level       [LOGNON/LOGFAT/LOGERR/LOGWAN/LOGINF/LOGADT/LOGDBG]
+ * @param  regname     [register name , max 20 bytes]
+ * @param  cstname     []
+ * @param  modname     [module name]
+ * @param  file        [__FILE__]
+ * @param  lineno      [__LINE__]
+ * @param  logfilepath [input log base path]
+ * @param  buf         [buffer]
+ * @param  len         [length of buffer]
+ * @param  fmt         [format for ascii print]
+ * @param  ...         []
+ * @return             [0 for success]
+ */
 int alog_writelog_t ( 
         int             logtype,
         enum alog_level level,
@@ -144,25 +194,44 @@ int alog_writelog_t (
         int             len,
         char            *fmt , ...)
 {
+    /**
+     * check input parameters
+     */
+    if ( (logtype != ALOG_TYPE_ASC && logtype != ALOG_TYPE_BIN && logtype != ALOG_TYPE_HEX)  ||\
+         (level < LOGNON || level > LOGDBG)                                                  ||\
+         (regname == NULL || strlen(regname) > ALOG_REGNAME_LEN)                             ||\
+         (cstname == NULL || strlen(cstname) > ALOG_CSTNAME_LEN)                             ||\
+         (modname == NULL) || (file == NULL) )     
+        return ALOGMSG_INVALID_PARAM;
+
     int             i = 0 ;
     int             j = 0 ;
     unsigned char   ch = ' ';
     int             ret = 0;
     struct          timeval  tv;
 
-    /* get config for current regname in local memory */
+    /**
+     * get config for current regname in local memory
+     */
     alog_regCfg_t   *regCfg = NULL;
     if ( (regCfg = getRegByName( g_alog_ctx->l_shm , regname ) ) == NULL )
         return ALOGMSG_REG_NOTFOUND;
 
-    /* judge log level */
+    /**
+     * judge log level
+     */
     if ( level > regCfg->level )
         return ALOGOK;
 
-    /* lock mutext */
+    /**
+     * lock mutext
+     */
     alog_lock();
 
-    /* get buffer for current regname+cstname , if not exist then create one */
+    /**
+     * get buffer for current regname+cstname+logfilepath
+     * if buffer not exists then create one
+     */
     alog_buffer_t   *buffer = NULL;
     if( (buffer = getBufferByName( regname , cstname , logfilepath )) == NULL ){
         ret = alog_addBuffer( regname  , cstname , logfilepath , &buffer);
@@ -172,17 +241,27 @@ int alog_writelog_t (
         }
     }
 
-    /* packing log message based on config */
+    /**
+     * packing log message based on config
+     */
     int         offset = 0;
     int         max = g_alog_ctx->l_shm->singleBlockSize * 1024;
     char        *temp = (char *)malloc(max);
+    if ( temp == NULL ){
+        alog_unlock();
+        return ALOGERR_MALLOC_FAIL;
+    }
     int         leftsize = 0 ;
     memset( temp , 0x00 , max );
 
-    /* get current time */
+    /**
+     * get current time
+     */
     gettimeofday( &tv , NULL );
 
-    /* date */
+    /**
+     * date
+     */
     if ( regCfg->format[0] == '1' ){
         if ( tv.tv_sec % 86400 != g_alog_ctx->timer.sec % 86400 ){
             /* update timer if now is a new day */
@@ -190,7 +269,9 @@ int alog_writelog_t (
         }
         offset += sprintf( temp+offset , "[%8s]" , g_alog_ctx->timer.date  );
     }
-    /* time */
+    /**
+     * time
+     */
     if ( regCfg->format[1] == '1' ){
         if ( tv.tv_sec != g_alog_ctx->timer.sec ){
             /* update timer if now is a new second */
@@ -198,20 +279,28 @@ int alog_writelog_t (
         }
         offset += sprintf( temp+offset ,  "[%8s]" , g_alog_ctx->timer.time );
     }
-    /* micro second */
+    /**
+     * micro second
+     */
     if ( regCfg->format[2] == '1' ){
         offset += sprintf( temp+offset ,"[%06d]" , tv.tv_usec );
     }
-    /* pid+tid */
+    /**
+     * pid+tid
+     */
     if ( regCfg->format[3] == '1' ){
         offset += sprintf( temp+offset ,"[PID:%-8d]" , getpid() );
         offset += sprintf( temp+offset ,"[TID:%-6ld]" , (long)pthread_self()%1000000 );
     }
-    /* modname */
+    /**
+     * modname
+     */
     if ( regCfg->format[4] == '1' ){
         offset += sprintf( temp+offset , "[%s]" , modname );
     }
-    /* log level */
+    /**
+     * log level
+     */
     if ( regCfg->format[5] == '1' ){
         char levelstr[7];
         switch( level ){
@@ -239,7 +328,9 @@ int alog_writelog_t (
         }
         offset += sprintf( temp+offset , "[%s]" , levelstr);
     }
-    /* filaname+lineno */
+    /**
+     * filaname+lineno
+     */
     if ( regCfg->format[6] == '1' ){
         offset += sprintf( temp+offset , "[%s:%d]" , file , lineno);
     }

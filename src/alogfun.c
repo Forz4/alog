@@ -1,10 +1,13 @@
 #include "alogfun.h"
-/*
- *  get config by regname
- * */
+/**
+ * [getRegByName   Get configs]
+ * @param  shm     [find regname in shm->regCfgs]
+ * @param  regname [regname to find]
+ * @return         [pointer to regcfg]
+ */
 alog_regCfg_t *getRegByName(alog_shm_t *shm , char *regname)
 {
-    if ( strlen(regname) == 0 || strlen(regname) > ALOG_REGNAME_LEN ){
+    if ( regname == NULL || strlen(regname) == 0 || strlen(regname) > ALOG_REGNAME_LEN ){
         return NULL;
     }
     int i = 0 ;
@@ -15,10 +18,13 @@ alog_regCfg_t *getRegByName(alog_shm_t *shm , char *regname)
     }
     return NULL;
 }
-/* 
- *  get buffer by regname+cstname
- *  if buffer not found , then try to create a new buffer and a new persist thread
- * */
+/**
+ * [getBufferByName    Get buffer by regname+cstname+logfilepath]
+ * @param  regname     [input regname]
+ * @param  cstname     [input cstname]
+ * @param  logfilepath [input logfilepath]
+ * @return             [pointer to buffer]
+ */
 alog_buffer_t *getBufferByName( char *regname , char *cstname , char *logfilepath)
 {
     if ( strlen(regname) == 0 || strlen(regname) > ALOG_REGNAME_LEN ||\
@@ -30,21 +36,25 @@ alog_buffer_t *getBufferByName( char *regname , char *cstname , char *logfilepat
         if ( strcmp( g_alog_ctx->buffers[i].regName , regname ) == 0 && \
                 strcmp( g_alog_ctx->buffers[i].cstName , cstname ) == 0 ){
 
-            /* if input logfilepath , then input path with current logBasePath */
+            /**
+             * if input logfilepath , then input path with current logBasePath
+             */
             if ( logfilepath && strlen(logfilepath) ) {
                 if ( strcmp( logfilepath , g_alog_ctx->buffers[i].logBasePath ) ){
                     continue;
                 }
             } else {
-                /* if no path input , then decide if default log path is created */
+                /**
+                 * if no path input , then decide if default log path is created
+                 */
                 if ( g_alog_ctx->buffers[i].isDefaultPath == 0 ) {
                     continue;
                 }
             }
-            /*
-             * judge if persist thread exist especially in the case of fork situation 
+            /**
+             * judge if persist thread exist especially in the case of fork situation
              * after fork , children process get buffer memory but no persist thread
-             * */
+             */
             if ( pthread_kill(g_alog_ctx->buffers[i].consTid,0) ){
                 ALOG_DEBUG("buffer exist but no persist thread lost , start to recreate persist thread");
                 alog_persist_arg_t  *arg = (alog_persist_arg_t *)malloc(sizeof(alog_persist_arg_t));
@@ -62,25 +72,27 @@ alog_buffer_t *getBufferByName( char *regname , char *cstname , char *logfilepat
     }
     return NULL;
 }
-/*
- * locking operation
- * */
+/**
+ * [alog_lock Lock mutex]
+ * @return [0]
+ */
 int alog_lock()
 {
     pthread_mutex_lock(&(g_alog_ctx->mutex));
     return 0;
 }
-/* 
- * unlocking operation
- * */
+/**
+ * [alog_unlock Unlock mutex]
+ * @return [0]
+ */
 int alog_unlock()
 {
     pthread_mutex_unlock(&(g_alog_ctx->mutex));
     return 0;
 }
-/* 
- *  update timer
- * */
+/**
+ * [alog_update_timer Update global timer]
+ */
 void alog_update_timer()
 {
     struct timeval  tv;
@@ -98,41 +110,58 @@ void alog_update_timer()
     memcpy(&(g_alog_ctx->timer.tmst) , temp , sizeof( struct tm) );
     return ;
 }
-/* 
- *  alloc space for a new buffer
- * */
+/**
+ * [alog_addBuffer Add a new buffer]
+ * @param  regname     [input regname]
+ * @param  cstname     [input cstname]
+ * @param  logfilepath [input logfilepath]
+ * @param  retbuffer   [pointer to new buffer]
+ * @return             [0 for success]
+ */
 int alog_addBuffer( char *regname  , char *cstname , char *logfilepath , alog_buffer_t **retbuffer)
 {
-    /* judge if total number exceeds limit */
+    /**
+     * judge if total number exceeds limit
+     */
     if ( g_alog_ctx->bufferNum >= ALOG_BUFFER_NUM ){
         return ALOGERR_BUFFERNUM_OVERFLOW;
     }
 
-    /* check input */
-    if ( strlen(regname) == 0 || strlen(regname) > ALOG_REGNAME_LEN ||\
+    /**
+     * check input
+     */
+    if ( regname == NULL || strlen(regname) == 0 || strlen(regname) > ALOG_REGNAME_LEN ||\
             strlen(cstname) == 0 || strlen(cstname) > ALOG_CSTNAME_LEN ){
         return ALOGERR_REGCST_INVALID;
     }
-    /* get config by regname */
+    /**
+     * get config by regname
+     */
     alog_regCfg_t       *regCfg;
     if ( (regCfg = getRegByName( g_alog_ctx->l_shm , regname )) == NULL ){
         ALOG_DEBUG("regname[%s] not found" , regname);
         return ALOGMSG_REG_NOTFOUND;
     }
-    /* check if buffer already exists */
+    /**
+     * check if buffer already exists
+     */
     alog_buffer_t       *buffer;
     if ( (buffer = getBufferByName( regname , cstname , logfilepath)) != NULL ){
         ALOG_DEBUG("buffer regname[%s] cstname[%s] logfilepath[%s] alread exists" , regname , cstname , logfilepath==NULL?"":logfilepath);
         return ALOGOK;
     }
 
-    /* ensure logfilepath exists */
+    /**
+     * ensure logfilepath exists
+     */
     if ( (logfilepath  && strlen(logfilepath) && alog_mkdir( logfilepath )) ||\
             ( alog_mkdir( regCfg->defLogBasePath) ) ){
         return ALOGERR_MKDIR_FAIL;
     }
 
-    /* add buffer */
+    /**
+     * add new buffer
+     */
     ALOG_DEBUG("start to create buffer for regname[%s] cstname[%s]" , regname , cstname);
     buffer = &(g_alog_ctx->buffers[g_alog_ctx->bufferNum]);
     g_alog_ctx->bufferNum ++;
@@ -147,7 +176,9 @@ int alog_addBuffer( char *regname  , char *cstname , char *logfilepath , alog_bu
         strcpy( buffer->logBasePath , regCfg->defLogBasePath );
     }
 
-    /* alloc space for the first node */
+    /**
+     * alloc space for the first node
+     */
     buffer->nodeNum = 1;
     alog_bufNode_t    *node = NULL;
     node = ( alog_bufNode_t *)malloc( sizeof(alog_bufNode_t) );
@@ -170,7 +201,9 @@ int alog_addBuffer( char *regname  , char *cstname , char *logfilepath , alog_bu
     node->next = node;
     node->prev = node;
 
-    /* create persist thread */
+    /**
+     * create persist thread
+     */
     alog_persist_arg_t  *arg = &(buffer->arg);
     strcpy( arg->regName , regname);
     strcpy( arg->cstName , cstname);
@@ -181,9 +214,11 @@ int alog_addBuffer( char *regname  , char *cstname , char *logfilepath , alog_bu
     *retbuffer = buffer;
     return ALOGOK;
 }
-/*
- * check if directory is valid , if not exists then try to create path
- * */
+/**
+ * [alog_mkdir Create directory if not exists]
+ * @param  dir [input direcotry]
+ * @return     [0 for success]
+ */
 int alog_mkdir( char *dir )
 {
     int len = strlen( dir );
@@ -205,7 +240,8 @@ int alog_mkdir( char *dir )
         if ( DirName[i] == '/' ){
             DirName[i] = 0;
             if ( access(DirName , R_OK) != 0 ){
-                if( mkdir( DirName , 0777 ) == -1 ) return ALOGERR_MKDIR_FAIL;
+                if( mkdir( DirName , 0777 ) == -1 )
+                    return ALOGERR_MKDIR_FAIL;
             }
             DirName[i] = '/';
         }
@@ -213,16 +249,19 @@ int alog_mkdir( char *dir )
 
     return ALOGOK;
 }
-/*
- *  update thread func
- *  check and update local memory every $CHECKINTERVAL seconds
- * */
+/**
+ * [alog_update_thread Background thread to check config update]
+ * @param  arg [NULL]
+ * @return     [NULL]
+ */
 void *alog_update_thread(void *arg)
 {
     struct          timeval  tv;
     int             shmid = 0;
 
-    /* block signals */
+    /**
+     * block signals
+     */
     sigset_t            sigset;
     sigemptyset(&sigset);
     sigaddset(&sigset, SIGALRM);
@@ -230,13 +269,16 @@ void *alog_update_thread(void *arg)
     sigaddset(&sigset, SIGUSR2);
     sigaddset(&sigset, SIGTERM);
     sigaddset(&sigset, SIGINT);
-    sigaddset(&sigset, SIGTERM);
     sigaddset(&sigset, SIGKILL);
     sigaddset(&sigset, SIGSEGV);
     pthread_sigmask(SIG_BLOCK , &sigset , NULL);
     
     while ( g_alog_ctx->closeFlag != 1 ){
+        /**
+         * if in statusless mode , then check configfile last modified time
+         */
         if ( g_alog_ctx->statusless == 1 ){
+            alog_shm_t *shm = NULL;
             char cfgFile[ALOG_FILEPATH_LEN+1];
             memset( cfgFile , 0x00 , sizeof(cfgFile) );
             sprintf( cfgFile , "%s/cfg/alog.cfg" , getenv("ALOG_HOME"));
@@ -244,48 +286,61 @@ void *alog_update_thread(void *arg)
             if ( stat( cfgFile , &buf) == 0 ){
                 if ( buf.st_mtime != g_alog_ctx->l_shm->updTime ){
                     alog_lock();
-                    g_alog_ctx->l_shm = alog_loadCfg( cfgFile );
-                    if ( g_alog_ctx->l_shm == NULL ){
+                    shm = alog_loadCfg( cfgFile );
+                    if ( shm == NULL ){
                         ALOG_DEBUG("fail to load config\n");
                     } else {
+                        memcpy( g_alog_ctx->l_shm , shm , sizeof(alog_shm_t) );
                         g_alog_ctx->l_shm->updTime = buf.st_mtime;
+                        free(shm);
                     }
                     alog_unlock();
                 }
             }
         } else {
+            /**
+             * if not in statusless mode , then check updTime with share memory
+             */
             alog_lock();
             gettimeofday( &tv , NULL );
-            /* if share memory key not exists , give up updating */
-            if ( g_alog_ctx->statusless == 0 ){
-                if ( (shmid = shmget( g_alog_ctx->l_shm->shmKey , sizeof(alog_shm_t) , 0 )) > 0 ){
-                    /* if shmid changes , it means share memory was recreated , then reattach to share memory */
-                    if ( shmid != g_alog_ctx->l_shm->shmId ){
-                        ALOG_DEBUG("shmid changes , reattach to share memory");
-                        g_alog_ctx->g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 );
-                    }
-                    /* check updTime */
-                    if ( g_alog_ctx->l_shm->updTime != g_alog_ctx->g_shm->updTime ){
-                        ALOG_DEBUG("share memory was updated , sync config , updTime[%ld]" , g_alog_ctx->g_shm->updTime);
-                        memcpy( g_alog_ctx->l_shm , g_alog_ctx->g_shm , sizeof( alog_shm_t) ) ;
-                    }
+            /**
+             * if share memory key not exists , give up updating
+             */
+            if ( (shmid = shmget( g_alog_ctx->l_shm->shmKey , sizeof(alog_shm_t) , 0 )) > 0 ){
+                /**
+                 * if shmid changes , it means share memory was recreated ,
+                 * then reattach to share memory
+                 */
+                if ( shmid != g_alog_ctx->l_shm->shmId ){
+                    ALOG_DEBUG("shmid changes , reattach to share memory");
+                    g_alog_ctx->g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 );
                 }
-            alog_unlock();
+                /**
+                 * check and update updTime
+                 */
+                if ( g_alog_ctx->l_shm->updTime != g_alog_ctx->g_shm->updTime ){
+                    ALOG_DEBUG("share memory was updated , sync config , updTime[%ld]" , g_alog_ctx->g_shm->updTime);
+                    memcpy( g_alog_ctx->l_shm , g_alog_ctx->g_shm , sizeof( alog_shm_t) ) ;
+                }
             }
+            alog_unlock();
         }
         sleep(g_alog_ctx->l_shm->checkInterval);
     }
     return NULL;
 }
-/*
- *  persist thread func
- *  read from buffer and write to file
- * */
+/**
+ * [alog_persist_thread Background thread for persisting]
+ * @param  arg [regname , cstname , logfilepath]
+ * @return     [NULL]
+ */
 void *alog_persist_thread(void *arg)
 {
     ALOG_DEBUG("persist thread start");
 
-    /* 获取参数 */
+    /**
+     * get parameter
+     */
     alog_persist_arg_t  *myarg = ( alog_persist_arg_t *)arg;
     ALOG_DEBUG("arg->regname[%s]" , myarg->regName);
     ALOG_DEBUG("arg->cstname[%s]" , myarg->cstName);
@@ -300,7 +355,9 @@ void *alog_persist_thread(void *arg)
     strcpy( mycstname , myarg->cstName );
     strcpy( mylogbasepath , myarg->logBasePath );
 
-    /* block signals */
+    /**
+     * block signals
+     */
     sigset_t            sigset;
     sigemptyset(&sigset);
     sigaddset(&sigset, SIGALRM);
@@ -308,12 +365,13 @@ void *alog_persist_thread(void *arg)
     sigaddset(&sigset, SIGUSR2);
     sigaddset(&sigset, SIGTERM);
     sigaddset(&sigset, SIGINT);
-    sigaddset(&sigset, SIGTERM);
     sigaddset(&sigset, SIGKILL);
     sigaddset(&sigset, SIGSEGV);
     pthread_sigmask(SIG_BLOCK , &sigset , NULL);
 
-    /* get buffer by regname+cstname */
+    /**
+     * get buffer by regname+cstname+logfilepath
+     */
     alog_buffer_t       *buffer = getBufferByName( myregname  , mycstname , mylogbasepath);
     if ( buffer == NULL ){
         ALOG_DEBUG("fail to get buffer");
@@ -327,9 +385,11 @@ void *alog_persist_thread(void *arg)
         alog_lock();
         node = buffer->consPtr;
         ALOG_DEBUG("persist thread at node[%d]" , node->index);
-        /* 
-         * 1. if current node not FULL , then sleep ${FLUSHINTERVAL} seconds , quit when closeFlag is set
-         * */
+        /**
+         *  if current node not FULL , 
+         *  then sleep ${FLUSHINTERVAL} seconds 
+         *  quit when closeFlag is set
+         */
         if ( g_alog_ctx->closeFlag != 1 && node->usedFlag != ALOG_NODE_FULL ){
 
             ALOG_DEBUG("current node [%d] not FULL" , node->index);
@@ -339,21 +399,22 @@ void *alog_persist_thread(void *arg)
             ALOG_DEBUG("start to  pthread_cond_timedwait");
             ret = pthread_cond_timedwait(&(g_alog_ctx->cond_persist) , &(g_alog_ctx->mutex) , &abstime);
             ALOG_DEBUG("wake from pthread_cond_timedwait ret[%d]" , ret);
-            /* 
-             * 2. time out or wake by other threads , then try to persist current node
-             * */
+            /**
+             * thread wait timeout or wake by other threads
+             * then try to persist current node
+             ad*/
         }
 
         ALOG_DEBUG("check node[%d]" , node->index);
-        /*
-         * 3. check current node again , if still FREE  then unlock and retry
-         * */
+        /**
+         * check current node again , if still FREE  then unlock and retry
+         */
         if ( node->usedFlag == ALOG_NODE_FREE ){
             ALOG_DEBUG("node[%d] is FREE" , node->index);
             alog_unlock();
-            /*
+            /**
              * if current node is FREE and closeFlag is set , then quit
-             * */
+             */
             if ( g_alog_ctx->closeFlag == 1 ){
                 ALOG_DEBUG("closeFlag set , persist thread quitting");
                 break;
@@ -362,9 +423,9 @@ void *alog_persist_thread(void *arg)
                 continue;
             }
         } else if ( node->usedFlag == ALOG_NODE_USED ){
-            /*
-            * 4. if current node is USED , then set current node to FULL and do persistence
-            * */
+            /**
+             * if current node is USED , then set current node to FULL and do persistence
+             */
             ALOG_DEBUG("node[%d] is USED , set status to FULL" , node->index);
             node->usedFlag = ALOG_NODE_FULL;
         } else {
@@ -372,16 +433,16 @@ void *alog_persist_thread(void *arg)
         }
         alog_unlock();
 
-        /* 
-         * 5. persist current node
-         * */
+        /**
+         * persist current node
+         */
         ALOG_DEBUG("persisting node[%d]" , node->index );
         alog_persist( myregname , mycstname , buffer->logBasePath , node );
         ALOG_DEBUG("node[%d] has been written to file" , node->index );
 
-        /* 
-         * 6. update node status
-         * */
+        /**
+         * update node status
+         */
         alog_lock();
         ALOG_DEBUG("set node[%d] to FREE",node->index);
         node->usedFlag = ALOG_NODE_FREE;
@@ -394,7 +455,9 @@ void *alog_persist_thread(void *arg)
         alog_unlock();
     }
 
-    /* rename log file before quit */
+    /**
+     * rename log file before quit
+     */
     alog_regCfg_t *cfg = getRegByName( g_alog_ctx->l_shm , myregname );
     if ( cfg->backupAfterQuit ){
         if ( cfg != NULL ){
@@ -413,12 +476,19 @@ void *alog_persist_thread(void *arg)
     }
     return NULL;
 }
-/*
- *  persisting operation
- * */
+/**
+ * [alog_persist Write log to file]
+ * @param  regname     [input regname]
+ * @param  cstname     [input cstname]
+ * @param  logbasepath [input logbasepath]
+ * @param  node        [node to persist]
+ * @return             [0 for success
+ */
 int alog_persist( char *regname , char *cstname , char *logbasepath , alog_bufNode_t *node)
 {
-    /* get config by regname */
+    /**
+     * get config by regname
+     */
     alog_regCfg_t *cfg = getRegByName( g_alog_ctx->l_shm , regname );
     if ( cfg == NULL ){
         return -1;
@@ -428,13 +498,17 @@ int alog_persist( char *regname , char *cstname , char *logbasepath , alog_bufNo
 
     alog_update_timer();
 
-    /* get log file name */
+    /**
+     * get log file name
+     */
     getFileNameFromFormat( ALOG_CURFILEFORMAT , cfg , regname , cstname , logbasepath , filePath);
 
     FILE *fp = fopen( filePath , "a+");
     fwrite(node->content , node->offset , 1 , fp);
 
-    /* judge if file size over limit */
+    /**
+     * judge if file size over limit
+     */
     long filesize = ftell(fp);
     if ( filesize > cfg->maxSize*1024*1024 ){
         alog_backupLog( cfg , regname , cstname , logbasepath);
@@ -442,9 +516,13 @@ int alog_persist( char *regname , char *cstname , char *logbasepath , alog_bufNo
     fclose(fp);
     return ALOGOK;
 }
-/*
- *
- * */
+/**
+ * [alog_backupLog Back up current log file]
+ * @param cfg         [regcfg]
+ * @param regname     [input regname]
+ * @param cstname     [input cstname]
+ * @param logbasepath [logbasepath]
+ */
 void alog_backupLog( alog_regCfg_t *cfg , char *regname , char *cstname , char *logbasepath)
 {
     char filePath[ALOG_FILEPATH_LEN];
@@ -459,9 +537,9 @@ void alog_backupLog( alog_regCfg_t *cfg , char *regname , char *cstname , char *
     system( command );
     return ;
 }
-/*
- *  get log file name 
- * */
+/**
+ * get log file name 
+ */
 void getFileNameFromFormat( int type  , alog_regCfg_t *cfg , char *regname , char *cstname , char *logbasepath , char filePath[ALOG_FILEPATH_LEN] )
 {
     char        *p =  NULL;
@@ -536,9 +614,9 @@ void getFileNameFromFormat( int type  , alog_regCfg_t *cfg , char *regname , cha
     }
     return ;
 }
-/*
- *  read from brackets
- * */
+/**
+ * read from brackets
+ */
 int get_bracket(const char *line , int no , char *value , int val_size)
 {
 	int i = 0;
@@ -567,16 +645,18 @@ int get_bracket(const char *line , int no , char *value , int val_size)
 
 	return 0;
 }
-/*
- *  load configs from environment and file
- * */
+/**
+ * load configs from environment and file
+ */
 alog_shm_t *alog_loadCfg( char *filepath )
 {
     char    line[ALOG_FILEPATH_LEN];
     char    buf[ALOG_CFGBUF_LEN];
     int     temp = 0;
 
-    /* allocate space for share memory */
+    /**
+     * allocate space for share memory
+     */
     alog_shm_t *l_shm = (alog_shm_t *)malloc(sizeof(alog_shm_t));
     if ( l_shm == NULL ){
         return l_shm;
@@ -600,14 +680,18 @@ alog_shm_t *alog_loadCfg( char *filepath )
         
         alog_regCfg_t   *cfg = &(l_shm->regCfgs[l_shm->regNum]);
         
-        /* col1 : regname */
+        /**
+         * col1 : regname
+         */
         if (get_bracket(line , 1 , buf , ALOG_CFGBUF_LEN)){
             fclose(fp);
             return NULL;
         }
         strncpy( cfg->regName , buf , ALOG_REGNAME_LEN);
 
-        /* col2 : log level */
+        /**
+         * col2 : log level
+         */
         if (get_bracket(line , 2 , buf , ALOG_CFGBUF_LEN)){
             fclose(fp);
             return NULL;
@@ -630,14 +714,18 @@ alog_shm_t *alog_loadCfg( char *filepath )
             cfg->level = LOGNON;
         }
 
-        /* col3 : file size limit */
+        /**
+         * col3 : file size limit
+         */
         if (get_bracket(line , 3 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
         }
         cfg->maxSize = atoi(buf);
 
-        /* col4 : log prefix pattern */
+        /**
+         * col4 : log prefix pattern
+         */
         if (get_bracket(line , 4 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
@@ -647,7 +735,9 @@ alog_shm_t *alog_loadCfg( char *filepath )
         char cmd[ALOG_COMMAND_LEN];
         FILE *fp_cmd = NULL;
 
-        /* col5 :  default log base path */
+        /**
+         * col5 : default log base path
+         */
         if (get_bracket(line , 5 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
@@ -665,7 +755,9 @@ alog_shm_t *alog_loadCfg( char *filepath )
             strncpy(cfg->defLogBasePath ,buf , ALOG_CFGBUF_LEN);
         }
 
-        /*  col6 : current file name patterm */
+        /**
+         * col6 : current file name patterm
+         */
         if (get_bracket(line , 6 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
@@ -683,7 +775,9 @@ alog_shm_t *alog_loadCfg( char *filepath )
             strncpy(cfg->curFileNamePattern ,buf , ALOG_CFGBUF_LEN);
         }
 
-        /*  col7 : backup file name patterm */
+        /**
+         * col7 : backup file name patterm
+         */
         if (get_bracket(line , 7 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
@@ -701,7 +795,9 @@ alog_shm_t *alog_loadCfg( char *filepath )
             strncpy(cfg->bakFileNamePattern ,buf , ALOG_CFGBUF_LEN);
         }
 
-        /*  col8 : force backup after quit */
+        /**
+         * col8 : force backup after quit
+         */
         if (get_bracket(line , 8 , buf , ALOG_CFGBUF_LEN )){
             fclose(fp);
             return NULL;
@@ -717,7 +813,9 @@ alog_shm_t *alog_loadCfg( char *filepath )
     l_shm->flushInterval = ALOG_DEF_FLUSHINTERVAL; 
     l_shm->checkInterval = ALOG_DEF_CHECKINTERVAL; 
 
-    /* load from environment */
+    /**
+     * load from environment
+     */
     if ( getenv("ALOG_MAXMEMORYSIZE") ){
         temp = atoi(getenv("ALOG_MAXMEMORYSIZE"));
         if ( temp > 0 && temp <= 4096 ){
@@ -744,9 +842,9 @@ alog_shm_t *alog_loadCfg( char *filepath )
     }
     return l_shm;
 } 
-/*
- *  Clean Up context
- * */
+/**
+ * [alog_cleanContext Clean up context]
+ */
 void alog_cleanContext()
 {
     if ( g_alog_ctx == NULL ){

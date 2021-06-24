@@ -88,7 +88,6 @@ int main(int argc , char *argv[])
     }
     message[i] = '\0';
 
-/* macros */
     for( i = 0 ; i < THREADNUM ; i ++ ){
         pthread_create( &tids[i] , NULL , func , 0 );
     }

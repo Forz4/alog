@@ -7,6 +7,7 @@
 #define     DEBUG                               0
 #endif
 
+#define     ALOGMSG_INVALID_PARAM               3
 #define     ALOGMSG_BUF_NOTFOUND                2
 #define     ALOGMSG_REG_NOTFOUND                1
 #define     ALOGOK                              0

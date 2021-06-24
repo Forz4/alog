@@ -1,10 +1,9 @@
-/*
- *   ALOG command tool
- * */
 #include "alogcmd.h"
 int main(int argc , char **argv)
 {
-    /* get from environment */
+    /**
+     * get from environment
+     */
     ENV_ALOG_HOME = getenv("ALOG_HOME");
     if ( ENV_ALOG_HOME == NULL ){
         perror("environment variable [ALOG_HOME] not found\n");
@@ -42,12 +41,20 @@ int main(int argc , char **argv)
     }
     return 0;
 }
+/**
+ * [alogcmd_help print help]
+ */
 void alogcmd_help()
 {
     printf("%s\n" , ALOG_VERSION);
     printf("alogcmd <init/reload/print/close>\n");
     return;
 }
+/**
+ * [alogcmd_load load from file and environment]
+ * @param  type [init/reload]
+ * @return      [0 for success]
+ */
 int alogcmd_load(char *type)
 {
     int shmkey = atoi(ENV_ALOG_SHMKEY);
@@ -83,6 +90,10 @@ int alogcmd_load(char *type)
     return 0;
 
 }
+/**
+ * [alogcmd_print print share memory]
+ * @return [0 for success]
+ */
 int alogcmd_print()
 {
     int shmkey = atoi(ENV_ALOG_SHMKEY);
@@ -135,9 +146,10 @@ int alogcmd_print()
     printf("=================================================================================================================================================\n");
     return 0;
 }
-/* 
- *  Clena Up
- * */
+/**
+ * [alogcmd_close destroy share memory]
+ * @return []
+ */
 int alogcmd_close()
 {
     key_t shmkey = (key_t)atoi(ENV_ALOG_SHMKEY);
