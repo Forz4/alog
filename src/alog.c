@@ -117,6 +117,11 @@ int alog_initContext()
      */
     pthread_create(&(g_alog_ctx->updTid), NULL, alog_update_thread, NULL );
 
+    /**
+     * register atexit
+     * */
+    atexit(alog_close);
+
     return 0;
 }
 /**
@@ -125,6 +130,7 @@ int alog_initContext()
  */
 int alog_close()
 {
+    if ( g_alog_ctx == NULL )   return 0;
     /**
      * set close flag
      */
@@ -146,8 +152,9 @@ int alog_close()
         pthread_join(g_alog_ctx->buffers[i].consTid, NULL);
     }
     pthread_join(g_alog_ctx->updTid, NULL);
-    ALOG_DEBUG("all threads joined");
+    ALOG_DEBUG("in SYNC MODE all threads joined");
 #else
+    ALOG_DEBUG("in ASYNC MODE usleep(500000)");
     usleep(500000);
 #endif
 
@@ -164,6 +171,8 @@ int alog_close()
     pthread_cond_destroy(&(g_alog_ctx->cond_persist));
     free(g_alog_ctx->l_shm);
     free(g_alog_ctx);
+
+    g_alog_ctx = NULL;
     
     return 0;
 }
