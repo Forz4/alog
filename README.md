@@ -82,8 +82,8 @@ ${ALOG_HOME}/cfg/alog.cfg
 # there are 2 special compiling mode:
 # for debug version which prints all debug information to stdout , use:
 cd ${ALOG_HOME}/src & make clean debug all
-# for sync version which all children threads will be joined in alog_close() , use:
-cd ${ALOG_HOME}/src & make clean sync all
+# for async version which all children threads will not be joined in alog_close() , use:
+cd ${ALOG_HOME}/src & make clean async all
 # normally you should just use:
 cd ${ALOG_HOME}/src & make clean all
 ```

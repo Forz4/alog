@@ -146,16 +146,16 @@ int alog_close()
     /**
      * join all threadsa
      */
-#ifdef ALOG_SYNC_MODE
+#ifdef ALOG_ASYNC_MODE
+    ALOG_DEBUG("in ASYNC MODE sleep(1)");
+    sleep(1);
+#else
     int i = 0;
     for ( i = 0 ; i < g_alog_ctx->bufferNum ; i ++ ){
         pthread_join(g_alog_ctx->buffers[i].consTid, NULL);
     }
     pthread_join(g_alog_ctx->updTid, NULL);
     ALOG_DEBUG("in SYNC MODE all threads joined");
-#else
-    ALOG_DEBUG("in ASYNC MODE usleep(500000)");
-    usleep(500000);
 #endif
 
     /**

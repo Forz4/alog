@@ -1,5 +1,5 @@
 DEBUG = -D ALOG_DEBUG_MODE
-SYNC = -D ALOG_SYNC_MODE
+ASYNC = -D ALOG_ASYNC_MODE
 TEMPFLAG = .debug.tmp
 INCPATH = ../include
 LIBPATH = ../lib
@@ -22,8 +22,8 @@ clean:
 debug:
 	$(ECHO) $(DEBUG) >> $(TEMPFLAG)
 
-sync:
-	$(ECHO) $(SYNC) >> $(TEMPFLAG)
+async:
+	$(ECHO) $(ASYNC) >> $(TEMPFLAG)
 
 .c.o:
 	$(CC) -c $< -I$(INCPATH) $(CFLAGS) `cat $(TEMPFLAG)`
