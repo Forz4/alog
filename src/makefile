@@ -32,7 +32,7 @@ alogcmd:	alogcmd.o alogfun.o
 	$(CC) -o $@ $^ $(LIBS)
 	$(MV) $@ $(BINPATH)
 
-libalog.a: alog.o alogfun.o alogcmd.o logpub.o
+libalog.a: alog.o alogfun.o logpub.o
 	$(AR) $@ $^ 
 	$(MV) $@ $(LIBPATH)
 
