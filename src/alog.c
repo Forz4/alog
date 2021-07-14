@@ -110,7 +110,9 @@ int alog_initContext()
     ctx->bufferNum = 0;
     memset(ctx->buffers , 0x00 , sizeof(ctx->buffers));
     ctx->closeFlag = 0;
-    alog_update_timer();
+    struct timeval tv;
+    gettimeofday( &tv , NULL );
+    alog_update_timer( tv );
 
     /**
      * create update thread
@@ -276,7 +278,7 @@ int alog_writelog_t (
     if ( regCfg->format[0] == '1' ){
         if ( tv.tv_sec % 86400 != g_alog_ctx->timer.sec % 86400 ){
             /* update timer if now is a new day */
-            alog_update_timer( );
+            alog_update_timer( tv );
         }
         offset += sprintf( temp+offset , "[%8s]" , g_alog_ctx->timer.date  );
     }
@@ -286,7 +288,7 @@ int alog_writelog_t (
     if ( regCfg->format[1] == '1' ){
         if ( tv.tv_sec != g_alog_ctx->timer.sec ){
             /* update timer if now is a new second */
-            alog_update_timer( );
+            alog_update_timer( tv );
         }
         offset += sprintf( temp+offset ,  "[%8s]" , g_alog_ctx->timer.time );
     }

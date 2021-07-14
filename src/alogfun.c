@@ -93,15 +93,11 @@ int alog_unlock()
 /**
  * [alog_update_timer Update global timer]
  */
-void alog_update_timer()
+void alog_update_timer( struct timeval tv )
 {
-    struct timeval  tv;
-    time_t t;
-
-    gettimeofday(&tv , NULL);
-    time(&t);
-
+    time_t t = tv.tv_sec;
     struct tm *temp = localtime( &t );
+
     sprintf( g_alog_ctx->timer.date , "%4d%02d%02d" , temp->tm_year+1900 , temp->tm_mon + 1 , temp->tm_mday);
     sprintf( g_alog_ctx->timer.time , "%02d:%02d:%02d" ,temp->tm_hour ,temp->tm_min ,temp->tm_sec);
 
@@ -509,8 +505,6 @@ int alog_persist( char *regname , char *cstname , char *logbasepath , alog_bufNo
     }
     char filePath[ALOG_FILEPATH_LEN];
     memset(filePath , 0x00 , sizeof(filePath));
-
-    alog_update_timer();
 
     /**
      * get log file name

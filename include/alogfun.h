@@ -9,7 +9,7 @@ alog_regCfg_t   *getRegByName(alog_shm_t *shm , char *regname);
 alog_buffer_t   *getBufferByName( char *regname , char *cstname , char *logfilepath);
 int             alog_lock();
 int             alog_unlock();
-void            alog_update_timer();
+void            alog_update_timer( struct timeval tv);
 int             alog_addBuffer( char *regname  , char *cstname , char *logfilepath , alog_buffer_t **retbuffer);
 int             alog_mkdir( char *dir );
 void            *alog_update_thread(void *arg);
