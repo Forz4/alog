@@ -52,25 +52,43 @@ alog_buffer_t *getBufferByName( char *regname , char *cstname , char *logfilepat
                 }
             }
             /**
+             * if regname+cstname+logfilepath finds a buffer , then 
              * judge if persist thread exist especially in the case of fork situation
              * after fork , children process get buffer memory but no persist thread
              */
             if ( pthread_kill(g_alog_ctx->buffers[i].consTid,0) ){
-                ALOG_DEBUG("buffer exist but no persist thread lost , start to recreate persist thread");
-                alog_persist_arg_t  *arg = (alog_persist_arg_t *)malloc(sizeof(alog_persist_arg_t));
-                strcpy( arg->regName , regname);
-                strcpy( arg->cstName , cstname);
-                pthread_create(&(g_alog_ctx->buffers[i].consTid), NULL, alog_persist_thread, (void *)arg );
-                free(arg);
+                ALOG_DEBUG("buffer exist but persist thread lost , then empty current buffer");
+                alog_bufNode_t  *temp;
+                alog_bufNode_t  *node;
+                node = g_alog_ctx->buffers[i].prodPtr;;
+                int j = 0;
+                for( j = 0 ; j < g_alog_ctx->buffers[i].nodeNum ; j ++ ){
+                    temp = node->next;
+                    free(node->content);
+                    free(node);
+                    node = temp;
+                }
+                ALOG_DEBUG("delete current buffer by set regname and cstname to 0x00 ");
+                memset( g_alog_ctx->buffers[i].regName , 0x0 , ALOG_REGNAME_LEN + 1 );
+                memset( g_alog_ctx->buffers[i].cstName , 0x0 , ALOG_CSTNAME_LEN + 1 );
+                /**
+                 * break out for loop
+                 */
+                break;
             }
-            if ( pthread_kill(g_alog_ctx->updTid,0) ){
-                ALOG_DEBUG("update thread lost , start to recreate update thread");
-                pthread_create(&(g_alog_ctx->updTid), NULL, alog_update_thread, NULL );
-            }
+
             return &(g_alog_ctx->buffers[i]);
         }
     }
-    return NULL;
+    /**
+     * if buffer not found then create a new one
+     */
+    alog_buffer_t *buffer = NULL;
+    if ( alog_addBuffer( regname , cstname , logfilepath , &buffer) == 0 ){
+        return buffer;
+    } else {
+        return NULL;
+    }
 }
 /**
  * [alog_lock Lock mutex]
@@ -114,12 +132,12 @@ void alog_update_timer( struct timeval tv )
  * @param  retbuffer   [pointer to new buffer]
  * @return             [0 for success]
  */
-int alog_addBuffer( char *regname  , char *cstname , char *logfilepath , alog_buffer_t **retbuffer)
+int alog_addBuffer( char *regname  , char *cstname , char *logfilepath  , alog_buffer_t **retbuffer)
 {
     /**
      * judge if total number exceeds limit
      */
-    if ( g_alog_ctx->bufferNum >= ALOG_BUFFER_NUM ){
+    if ( g_alog_ctx->bufferNum + 1 > ALOG_BUFFER_NUM ){
         return ALOGERR_BUFFERNUM_OVERFLOW;
     }
 
@@ -138,14 +156,6 @@ int alog_addBuffer( char *regname  , char *cstname , char *logfilepath , alog_bu
         ALOG_DEBUG("regname[%s] not found" , regname);
         return ALOGMSG_REG_NOTFOUND;
     }
-    /**
-     * check if buffer already exists
-     */
-    alog_buffer_t       *buffer;
-    if ( (buffer = getBufferByName( regname , cstname , logfilepath)) != NULL ){
-        ALOG_DEBUG("buffer regname[%s] cstname[%s] logfilepath[%s] alread exists" , regname , cstname , logfilepath==NULL?"":logfilepath);
-        return ALOGOK;
-    }
 
     /**
      * ensure logfilepath exists
@@ -159,7 +169,7 @@ int alog_addBuffer( char *regname  , char *cstname , char *logfilepath , alog_bu
      * add new buffer
      */
     ALOG_DEBUG("start to create buffer for regname[%s] cstname[%s]" , regname , cstname);
-    buffer = &(g_alog_ctx->buffers[g_alog_ctx->bufferNum]);
+    alog_buffer_t *buffer = &(g_alog_ctx->buffers[g_alog_ctx->bufferNum]);
     g_alog_ctx->bufferNum ++;
     strncpy( buffer->regName , regname , sizeof(buffer->regName) );
     strncpy( buffer->cstName , cstname , sizeof(buffer->cstName) );
@@ -206,8 +216,8 @@ int alog_addBuffer( char *regname  , char *cstname , char *logfilepath , alog_bu
     strcpy( arg->logBasePath , buffer->logBasePath);
 
     pthread_create(&(buffer->consTid), NULL, alog_persist_thread, (void *)arg );
-    
     *retbuffer = buffer;
+    
     return ALOGOK;
 }
 /**
@@ -292,7 +302,7 @@ void *alog_update_thread(void *arg)
                     alog_lock();
                     shm = alog_loadCfg( cfgFile );
                     if ( shm == NULL ){
-                        ALOG_DEBUG("fail to load config\n");
+                        ALOG_DEBUG("fail to load config");
                     } else {
                         memcpy( g_alog_ctx->l_shm , shm , sizeof(alog_shm_t) );
                         g_alog_ctx->l_shm->updTime = buf.st_mtime;
@@ -300,6 +310,8 @@ void *alog_update_thread(void *arg)
                     }
                     alog_unlock();
                 }
+            } else {
+                ALOG_DEBUG("fail to stat file %s" , cfgFile);
             }
         } else {
             /**

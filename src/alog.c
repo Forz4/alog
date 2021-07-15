@@ -220,7 +220,6 @@ int alog_writelog_t (
     int             i = 0 ;
     int             j = 0 ;
     unsigned char   ch = ' ';
-    int             ret = 0;
     struct          timeval  tv;
 
     /**
@@ -237,21 +236,26 @@ int alog_writelog_t (
         return ALOGOK;
 
     /**
-     * lock mutext
+     * lock mutex
      */
     alog_lock();
+
+    /**
+     * check if update thread exists
+     */
+    if ( pthread_kill(g_alog_ctx->updTid,0) ){
+        ALOG_DEBUG("update thread lost , start to recreate update thread");
+        pthread_create(&(g_alog_ctx->updTid), NULL, alog_update_thread, NULL );
+    }
 
     /**
      * get buffer for current regname+cstname+logfilepath
      * if buffer not exists then create one
      */
     alog_buffer_t   *buffer = NULL;
-    if( (buffer = getBufferByName( regname , cstname , logfilepath )) == NULL ){
-        ret = alog_addBuffer( regname  , cstname , logfilepath , &buffer);
-        if ( ret ){
-            alog_unlock();
-            return ret;
-        }
+    if( ( buffer = getBufferByName( regname , cstname , logfilepath )) == NULL ){
+        alog_unlock();
+        return ALOGMSG_BUF_NOTFOUND;
     }
 
     /**

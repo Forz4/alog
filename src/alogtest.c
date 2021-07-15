@@ -78,6 +78,17 @@ int main(int argc , char *argv[])
     if ( alog_initContext() ) {
         exit(0);
     }
+    ALOG_INFASC( REGNAME , "parent" , "" , logfilepath , "parent start");
+    
+    int pid = fork();
+    if ( pid > 0 ){
+        ALOG_INFASC( REGNAME , "parent" , "" , logfilepath , "parent quit");
+        exit(0);
+    } 
+
+    setsid();
+    setpgrp();
+    ALOG_INFASC( REGNAME , "parent" , "" , logfilepath , "child start");
 
     message = (char *)malloc(LENGTH+1);
     int             i = 0;
