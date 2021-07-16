@@ -285,14 +285,7 @@ void *alog_update_thread(void *arg)
      * block signals
      */
     sigset_t            sigset;
-    sigemptyset(&sigset);
-    sigaddset(&sigset, SIGALRM);
-    sigaddset(&sigset, SIGUSR1);
-    sigaddset(&sigset, SIGUSR2);
-    sigaddset(&sigset, SIGTERM);
-    sigaddset(&sigset, SIGINT);
-    sigaddset(&sigset, SIGKILL);
-    sigaddset(&sigset, SIGSEGV);
+    sigfillset(&sigset);
     pthread_sigmask(SIG_BLOCK , &sigset , NULL);
     
     while ( g_alog_ctx->closeFlag != 1 ){
@@ -389,14 +382,7 @@ void *alog_persist_thread(void *arg)
      * block signals
      */
     sigset_t            sigset;
-    sigemptyset(&sigset);
-    sigaddset(&sigset, SIGALRM);
-    sigaddset(&sigset, SIGUSR1);
-    sigaddset(&sigset, SIGUSR2);
-    sigaddset(&sigset, SIGTERM);
-    sigaddset(&sigset, SIGINT);
-    sigaddset(&sigset, SIGKILL);
-    sigaddset(&sigset, SIGSEGV);
+    sigfillset(&sigset);
     pthread_sigmask(SIG_BLOCK , &sigset , NULL);
 
     /**
