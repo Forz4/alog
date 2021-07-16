@@ -86,8 +86,15 @@ int main(int argc , char *argv[])
         exit(0);
     } 
 
-    setsid();
     setpgrp();
+    pid = fork();
+    if ( pid > 0 ){
+        exit(0);
+    } else if ( pid == 0 ){
+        chdir("/");
+        umask(0);
+    }
+
     ALOG_INFASC( REGNAME , "parent" , "" , logfilepath , "child start");
 
     message = (char *)malloc(LENGTH+1);

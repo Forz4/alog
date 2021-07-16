@@ -241,14 +241,6 @@ int alog_writelog_t (
     alog_lock();
 
     /**
-     * check if update thread exists
-     */
-    if ( pthread_kill(g_alog_ctx->updTid,0) ){
-        ALOG_DEBUG("update thread lost , start to recreate update thread");
-        pthread_create(&(g_alog_ctx->updTid), NULL, alog_update_thread, NULL );
-    }
-
-    /**
      * get buffer for current regname+cstname+logfilepath
      * if buffer not exists then create one
      */

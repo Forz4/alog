@@ -52,9 +52,10 @@ alog_buffer_t *getBufferByName( char *regname , char *cstname , char *logfilepat
                 }
             }
             /**
-             * if regname+cstname+logfilepath finds a buffer , then 
-             * judge if persist thread exist especially in the case of fork situation
-             * after fork , children process get buffer memory but no persist thread
+             * if regname+cstname+logfilepath locates a buffer , then 
+             * judge if persist thread exist , especially in the case of fork situation
+             * because after fork , children process only get buffer memory but no 
+             * persist thread.
              */
             if ( pthread_kill(g_alog_ctx->buffers[i].consTid,0) ){
                 ALOG_DEBUG("buffer exist but persist thread lost , then empty current buffer");
@@ -71,6 +72,13 @@ alog_buffer_t *getBufferByName( char *regname , char *cstname , char *logfilepat
                 ALOG_DEBUG("delete current buffer by set regname and cstname to 0x00 ");
                 memset( g_alog_ctx->buffers[i].regName , 0x0 , ALOG_REGNAME_LEN + 1 );
                 memset( g_alog_ctx->buffers[i].cstName , 0x0 , ALOG_CSTNAME_LEN + 1 );
+                /**
+                 * check if update thread exists
+                 */
+                if ( pthread_kill(g_alog_ctx->updTid,0) ){
+                    ALOG_DEBUG("update thread lost , start to recreate update thread");
+                    pthread_create(&(g_alog_ctx->updTid), NULL, alog_update_thread, NULL );
+                }
                 /**
                  * break out for loop
                  */
