@@ -122,7 +122,7 @@ int alog_initContext()
     /**
      * register atexit
      * */
-    atexit(alog_close);
+    /*atexit(alog_close);*/
 
     return 0;
 }
@@ -305,7 +305,11 @@ int alog_writelog_t (
      * modname
      */
     if ( regCfg->format[4] == '1' ){
-        offset += sprintf( temp+offset , "[%s]" , modname );
+        if ( modname && strlen(modname) )
+            offset += sprintf( temp+offset , "[%-30s]" , modname );
+        else
+            offset += sprintf( temp+offset , "[]" );
+
     }
     /**
      * log level

@@ -50,7 +50,7 @@
 
 /* log level */
 enum alog_level{
-    LOGNON = 0,
+    LOGNON = 1,
     LOGFAT,
     LOGERR,
     LOGWAN,

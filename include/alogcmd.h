@@ -4,7 +4,8 @@
 #include "alogerror.h"
 #include "alogfun.h"
 
-const char alog_level_string[7][7]={
+const char alog_level_string[8][7]={
+    "",
     "LOGNON",
     "LOGFAT",
     "LOGERR",
