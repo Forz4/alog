@@ -13,27 +13,39 @@ ALOG is a **Light , Thread safe , Asynchronized and Functional** log module for 
 ${ALOG_HOME}/env/alog.env
 
 ```shell
-# ALOG HOME Directory , mandatory
+#######           MANDATORY CONFIGURATIONS                   #######
+####################################################################
 export ALOG_HOME=~/development/alog
-# ALOG share memory key , optional.
-# if set than alog.cfg is loaded into share memory
-# if unset , client process reads congfigs from file directly
-export ALOG_SHMKEY=1234
-#unset ALOG_SHMKEY
-# add alogcmd to $PATH
 export PATH=${PATH}:${ALOG_HOME}/bin
-# single block size for persist thread to write , unit is KB
-# Optional , default value is 4KB
-export ALOG_SINGLEBLOCKSIZE=2
-# maximum memory use for a single buffer , unit is Mb
-# optional , defalut value is 4MB
-export ALOG_MAXMEMORYSIZE=8
-# flush interval for persist thread , unit is second
-# optional , default value is 2 seconds
-export ALOG_FLUSHINTERVAL=1
-# update check interval for background update thread , unit is second
-# optional , default value is 1 second
-export ALOG_CHECKINTERVAL=1
+export ALOG_SHMKEY=1234
+####################################################################
+
+#######           OPTIONAL CONFIGURATIONS                    #######
+####################################################################
+# block size that is malloced in one node
+# unit is KB
+# default 16KB
+# valid scale : ( 0 , 64 ]
+#export ALOG_SINGLEBLOCKSIZE=16
+####################################################################
+# memmory that is allowed to use in total
+# unit is MB
+# default 16MB
+# valid scale : ( 0 , 1024 ]
+#export ALOG_MAXMEMORYSIZE=16
+####################################################################
+# timeout interval for backgroud persist thread
+# unit is second
+# default 1 second
+# valid scale : [ 1 , 5 ]
+#export ALOG_FLUSHINTERVAL=1
+####################################################################
+# interval time for backgroud udpate thread
+# unit is microsecond
+# default 500 ms
+# valid scale : [ 250 , 2000 ]
+#export ALOG_CHECKINTERVAL=500
+####################################################################
 ```
 
 ### Log settings
@@ -82,8 +94,6 @@ ${ALOG_HOME}/cfg/alog.cfg
 # there are 2 special compiling mode:
 # for debug version which prints all debug information to stdout , use:
 cd ${ALOG_HOME}/src & make clean debug all
-# for async version which all children threads will not be joined in alog_close() , use:
-cd ${ALOG_HOME}/src & make clean async all
 # normally you should just use:
 cd ${ALOG_HOME}/src & make clean all
 ```
