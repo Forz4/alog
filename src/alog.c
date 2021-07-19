@@ -120,9 +120,14 @@ int alog_initContext()
     pthread_create(&(g_alog_ctx->updTid), NULL, alog_update_thread, NULL );
 
     /**
-     * register atexit
+     * register atexit , ensure alog_close is called before exit
      * */
-    /*atexit(alog_close);*/
+    atexit(alog_close);
+
+    /**
+     * register atfork , ensure that mutex status is normal after fork
+     */
+    pthread_atfork( alog_atfork_prepare , alog_atfork_after , alog_atfork_after );
 
     return 0;
 }

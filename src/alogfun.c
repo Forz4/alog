@@ -885,3 +885,19 @@ void alog_cleanContext()
     free(g_alog_ctx);
     return ;
 }
+/**
+ * [alog_atfork_prepare lock mutex before fork is called]
+ */
+void alog_atfork_prepare()
+{
+    alog_lock();
+    return;
+}
+/**
+ * [alog_atfork_after unlock mutex after fork returns both in parent or child]
+ */
+void alog_atfork_after()
+{
+    alog_unlock();
+    return;
+}

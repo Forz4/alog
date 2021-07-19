@@ -20,5 +20,7 @@ void            getFileNameFromFormat( int type  , alog_regCfg_t *cfg , char *re
 int             get_bracket(const char *line , int no , char *value , int val_size);
 alog_shm_t      *alog_loadCfg( char *filepath );
 void            alog_cleanContext();
+void            alog_atfork_prepare();
+void            alog_atfork_after();
 #endif
 
