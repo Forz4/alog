@@ -118,7 +118,7 @@ int alogcmd_print()
     printf("ALOG_MAXMEMORYSIZE   :    %d(MB)\n",g_shm->maxMemorySize);
     printf("ALOG_SINGLEBLOCKSIZE :    %d(KB)\n",g_shm->singleBlockSize);
     printf("ALOG_FLUSHINTERVAL   :    %d(s)\n",g_shm->flushInterval);
-    printf("ALOG_CHECKINTERVAL   :    %d(s)\n",g_shm->checkInterval);
+    printf("ALOG_CHECKINTERVAL   :    %d(ms)\n",g_shm->checkInterval);
     printf("UPDATE TIMESTAMP     :    %4d%02d%02d %02d:%02d:%02d\n",tm->tm_year+1900,tm->tm_mon+1,tm->tm_mday,tm->tm_hour,tm->tm_min,tm->tm_sec);
     printf("REG CONFIG NUMBER    :    %d\n",g_shm->regNum);
     printf("=================================================================================================================================================\n");

@@ -27,10 +27,10 @@
 #define ALOG_NODE_FULL              1
 #define ALOG_NODE_USED              2
 /* default config */
-#define ALOG_DEF_MAXMEMORYSIZE      8
-#define ALOG_DEF_SINGLEBLOCKSIZE    8
-#define ALOG_DEF_FLUSHINTERVAL      2
-#define ALOG_DEF_CHECKINTERVAL      2
+#define ALOG_DEF_MAXMEMORYSIZE      16
+#define ALOG_DEF_SINGLEBLOCKSIZE    16
+#define ALOG_DEF_FLUSHINTERVAL      1
+#define ALOG_DEF_CHECKINTERVAL      500
 /* log type */
 #define ALOG_TYPE_ASC               1
 #define ALOG_TYPE_BIN               2
@@ -126,7 +126,6 @@ typedef struct alog_context{
     struct alog_timer   timer;                                  /* timer                            */
     int                 closeFlag;                              /* close flag                       */
     pthread_t           updTid;                                 /* thread id of update thread       */
-    int                 statusless;                             /* statusless sign                  */
 }alog_context_t;
 
 /* context */

@@ -290,59 +290,32 @@ void *alog_update_thread(void *arg)
     
     while ( g_alog_ctx->closeFlag != 1 ){
         /**
-         * if in statusless mode , then check configfile last modified time
+         * check if sharememory is udpated
          */
-        if ( g_alog_ctx->statusless == 1 ){
-            alog_shm_t *shm = NULL;
-            char cfgFile[ALOG_FILEPATH_LEN+1];
-            memset( cfgFile , 0x00 , sizeof(cfgFile) );
-            sprintf( cfgFile , "%s/cfg/alog.cfg" , getenv("ALOG_HOME"));
-            struct stat buf;
-            if ( stat( cfgFile , &buf) == 0 ){
-                if ( buf.st_mtime != g_alog_ctx->l_shm->updTime ){
-                    alog_lock();
-                    shm = alog_loadCfg( cfgFile );
-                    if ( shm == NULL ){
-                        ALOG_DEBUG("fail to load config");
-                    } else {
-                        memcpy( g_alog_ctx->l_shm , shm , sizeof(alog_shm_t) );
-                        g_alog_ctx->l_shm->updTime = buf.st_mtime;
-                        free(shm);
-                    }
-                    alog_unlock();
-                }
-            } else {
-                ALOG_DEBUG("fail to stat file %s" , cfgFile);
-            }
-        } else {
+        alog_lock();
+        gettimeofday( &tv , NULL );
+        /**
+         * if share memory key not exists , give up updating
+         */
+        if ( (shmid = shmget( g_alog_ctx->l_shm->shmKey , sizeof(alog_shm_t) , 0 )) > 0 ){
             /**
-             * if not in statusless mode , then check updTime with share memory
+             * if shmid changes , it means share memory was recreated ,
+             * then reattach to share memory
              */
-            alog_lock();
-            gettimeofday( &tv , NULL );
-            /**
-             * if share memory key not exists , give up updating
-             */
-            if ( (shmid = shmget( g_alog_ctx->l_shm->shmKey , sizeof(alog_shm_t) , 0 )) > 0 ){
-                /**
-                 * if shmid changes , it means share memory was recreated ,
-                 * then reattach to share memory
-                 */
-                if ( shmid != g_alog_ctx->l_shm->shmId ){
-                    ALOG_DEBUG("shmid changes , reattach to share memory");
-                    g_alog_ctx->g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 );
-                }
-                /**
-                 * check and update updTime
-                 */
-                if ( g_alog_ctx->l_shm->updTime != g_alog_ctx->g_shm->updTime ){
-                    ALOG_DEBUG("share memory was updated , sync config , updTime[%ld]" , g_alog_ctx->g_shm->updTime);
-                    memcpy( g_alog_ctx->l_shm , g_alog_ctx->g_shm , sizeof( alog_shm_t) ) ;
-                }
+            if ( shmid != g_alog_ctx->l_shm->shmId ){
+                ALOG_DEBUG("shmid changes , reattach to share memory");
+                g_alog_ctx->g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 );
             }
-            alog_unlock();
+            /**
+             * check and update updTime
+             */
+            if ( g_alog_ctx->l_shm->updTime != g_alog_ctx->g_shm->updTime ){
+                ALOG_DEBUG("share memory was updated , sync config , updTime[%ld]" , g_alog_ctx->g_shm->updTime);
+                memcpy( g_alog_ctx->l_shm , g_alog_ctx->g_shm , sizeof( alog_shm_t) ) ;
+            }
         }
-        sleep(g_alog_ctx->l_shm->checkInterval);
+        alog_unlock();
+        usleep( g_alog_ctx->l_shm->checkInterval * 100);
     }
     return NULL;
 }
@@ -832,25 +805,25 @@ alog_shm_t *alog_loadCfg( char *filepath )
      */
     if ( getenv("ALOG_MAXMEMORYSIZE") ){
         temp = atoi(getenv("ALOG_MAXMEMORYSIZE"));
-        if ( temp > 0 && temp <= 4096 ){
+        if ( temp > 0 && temp <= 1024 ){
             l_shm->maxMemorySize = temp;
         } 
     }
     if ( getenv("ALOG_SINGLEBLOCKSIZE") ){
         temp = atoi(getenv("ALOG_SINGLEBLOCKSIZE"));
-        if ( temp > 0 && temp <= 1024 ){
+        if ( temp > 0 && temp <= 64 ){
             l_shm->singleBlockSize = temp;
         }
     }
     if ( getenv("ALOG_FLUSHINTERVAL") ){
         temp = atoi(getenv("ALOG_FLUSHINTERVAL"));
-        if ( temp > 0 && temp <= 10 ){
+        if ( temp > 0 && temp <= 5 ){
             l_shm->flushInterval = temp;
         }
     }
     if ( getenv("ALOG_CHECKINTERVAL") ){
         temp = atoi(getenv("ALOG_CHECKINTERVAL"));
-        if ( temp > 0 && temp <= 10 ){
+        if ( temp >= 250 && temp <= 2000 ){
             l_shm->checkInterval = temp;
         }
     }

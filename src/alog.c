@@ -16,27 +16,19 @@ int alog_initContext()
     key_t           shmkey;
     int             shmid = 0;
     alog_shm_t      *g_shm = NULL;
-    int             statusless = 0;
 
     /**
-     * if ALOG_SHMKEY is not set , then start in statusless mode
+     * get and load share memory
      */
-    if ( ( ENV_SHMKEY = getenv("ALOG_SHMKEY") ) == NULL ){
-        ALOG_DEBUG("start in statusless mode");
-        statusless = 1;
-    } else {
-        /**
-         * if ALOG_SHMKEY is set , then attach to share memory
-         */
-        shmkey = atoi(ENV_SHMKEY);
-        if ( ( shmid = shmget( shmkey , sizeof(alog_shm_t) , 0) ) < 0 ){
-            ALOG_DEBUG("shmget fail , shmkey[%s] , shmid[%d] , errmsg[%s]!" , ENV_SHMKEY , shmid  , strerror(errno));
-            return ALOGERR_SHMGET_FAIL;
-        } 
-        if ( (g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 ))  == NULL ){
-            ALOG_DEBUG("shmat fail , shmkey[%s] , shmid[%d]! , errmsg[%s]" , ENV_SHMKEY , shmid  , strerror(errno));
-            return ALOGERR_SHMAT_FAIL;
-        }
+    ENV_SHMKEY = getenv("ALOG_SHMKEY");
+    shmkey = atoi(ENV_SHMKEY);
+    if ( ( shmid = shmget( shmkey , sizeof(alog_shm_t) , 0) ) < 0 ){
+        ALOG_DEBUG("shmget fail , shmkey[%s] , shmid[%d] , errmsg[%s]!" , ENV_SHMKEY , shmid  , strerror(errno));
+        return ALOGERR_SHMGET_FAIL;
+    } 
+    if ( (g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 ))  == NULL ){
+        ALOG_DEBUG("shmat fail , shmkey[%s] , shmid[%d]! , errmsg[%s]" , ENV_SHMKEY , shmid  , strerror(errno));
+        return ALOGERR_SHMAT_FAIL;
     }
     
     /**
@@ -45,8 +37,7 @@ int alog_initContext()
     alog_context_t  *ctx = (alog_context_t *)malloc(sizeof(alog_context_t));
     if ( ctx == NULL ) {
         ALOG_DEBUG("fail to malloc [alog_context_t]");
-        if ( statusless == 0 )
-            shmdt(g_shm);
+        shmdt(g_shm);
         return ALOGERR_MALLOC_FAIL;
     }
 
@@ -61,8 +52,7 @@ int alog_initContext()
     if ( pthread_mutex_init(&(ctx->mutex), NULL) )
     {
         ALOG_DEBUG("fail to initialize mutex");
-        if ( statusless == 0 )
-            shmdt(g_shm);
+        shmdt(g_shm);
         return ALOGERR_INITMUTEX_FAIL;
     }
 
@@ -71,8 +61,7 @@ int alog_initContext()
      */
     if ( pthread_cond_init(&(ctx->cond_persist), NULL))
     {
-        if ( statusless == 0 )
-            shmdt(g_shm);
+        shmdt(g_shm);
         return ALOGERR_INITCOND_FAIL;
     }
 
@@ -80,32 +69,15 @@ int alog_initContext()
      * initialize space for share memory struct
      */
     if ( (ctx->l_shm = (alog_shm_t *)malloc(sizeof(alog_shm_t))) == NULL ){
-        if ( statusless == 0 )
-            shmdt(g_shm);
+        shmdt(g_shm);
         return ALOGERR_MALLOC_FAIL;
     }
 
-    if ( statusless == 0 ){
-        ctx->g_shm = g_shm;
-        memcpy( g_alog_ctx->l_shm , g_shm , sizeof(alog_shm_t) );
-        g_alog_ctx->statusless = 0;
-    } else {
-        g_alog_ctx->statusless = 1;
-        char cfgFile[ALOG_FILEPATH_LEN+1];
-        memset( cfgFile , 0x00 , sizeof(cfgFile) );
-        sprintf( cfgFile , "%s/cfg/alog.cfg" , getenv("ALOG_HOME"));
-        if ( access( cfgFile , R_OK ) ){
-            return ALOGERR_LOADCFG_FAIL;            
-        }
-        ctx->l_shm = alog_loadCfg( cfgFile );
-        if ( ctx->l_shm == NULL ){
-            ALOG_DEBUG("fail to load config");
-            return ALOGERR_LOADCFG_FAIL;
-        }
-        struct stat buf;
-        if ( stat( cfgFile , &buf) == 0 )
-            ctx->l_shm->updTime = buf.st_mtime;
-    }
+    /**
+     * copy share memory to local memory
+     */
+    ctx->g_shm = g_shm;
+    memcpy( g_alog_ctx->l_shm , g_shm , sizeof(alog_shm_t) );
 
     ctx->bufferNum = 0;
     memset(ctx->buffers , 0x00 , sizeof(ctx->buffers));
@@ -168,8 +140,7 @@ int alog_close()
     /**
      * detach share memory
      */
-    if ( g_alog_ctx->statusless == 0 )
-        shmdt(g_alog_ctx->g_shm);
+    shmdt(g_alog_ctx->g_shm);
 
     /**
      * clean up resources
