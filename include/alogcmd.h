@@ -21,5 +21,6 @@ void            alogcmd_help();
 int             alogcmd_load(char *type);
 int             alogcmd_print();
 int             alogcmd_close();
+int             alogcmd_setLevel( char *regname , char *level );
 #endif
 
