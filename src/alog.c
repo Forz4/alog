@@ -179,6 +179,12 @@ int alog_writelog_t (
         char            *fmt , ...)
 {
     /**
+     * check if context is initialized
+     */
+    if ( g_alog_ctx == NULL && alog_initContext() != 0  ){
+        return ALOGERR_CTX_NOTINIT;
+    }
+    /**
      * check input parameters
      */
     if ( (logtype != ALOG_TYPE_ASC && logtype != ALOG_TYPE_BIN && logtype != ALOG_TYPE_HEX)  ||\

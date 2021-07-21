@@ -22,6 +22,7 @@
 #define     ALOGERR_BUFFERNUM_OVERFLOW          -9
 #define     ALOGERR_MKDIR_FAIL                  -10
 #define     ALOGERR_LOADCFG_FAIL                -11
+#define     ALOGERR_CTX_NOTINIT                 -12
 
 #define     ALOG_DEBUG( fmt , ... ) \
     do{ \
