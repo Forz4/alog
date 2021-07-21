@@ -193,7 +193,6 @@ int alog_writelog_t (
          (cstname == NULL || strlen(cstname) > ALOG_CSTNAME_LEN)                             ||\
          (modname == NULL) || (file == NULL) )     
         return ALOGMSG_INVALID_PARAM;
-
     int             i = 0 ;
     int             j = 0 ;
     unsigned char   ch = ' ';
@@ -218,11 +217,21 @@ int alog_writelog_t (
     alog_lock();
 
     /**
+     * if cstname is not set , then set it to current PID
+     */
+    char realcstname[ALOG_CSTNAME_LEN+1];
+    memset(realcstname , 0x00 , ALOG_CSTNAME_LEN + 1);
+    if ( strlen(cstname) == 0 ){
+        sprintf( realcstname , "%d" , getpid());
+    } else {
+        strcpy( realcstname , cstname );
+    }
+    /**
      * get buffer for current regname+cstname+logfilepath
      * if buffer not exists then create one
      */
     alog_buffer_t   *buffer = NULL;
-    if( ( buffer = getBufferByName( regname , cstname , logfilepath )) == NULL ){
+    if( ( buffer = getBufferByName( regname , realcstname , logfilepath )) == NULL ){
         alog_unlock();
         return ALOGMSG_BUF_NOTFOUND;
     }
