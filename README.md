@@ -1,16 +1,34 @@
-# Quick Reference
+# **ALOG Reference**
 
-[TOC]
+## Table of Contents
+
+* [What is ALOG](##What is ALOG)
+* [Version](##Version)
+* [Configuration](##Configuration)
+  * [Global settings](###Global settings)
+  * [Log settings](###Log settings)
+* [How to build](##How to build) 
+* [How to use](##How to use) 
+* [How to handle share memory](##How to handle share memory)
+* [Glimpse of implementation](##Glimpse of implementation)
+  * [Data structure](###Data structure)
+  * [Thread Logic](###Thread Logic)
 
 ## What is ALOG
 
 ALOG is a **Light , Thread safe , Asynchronized and Functional** log module for C.
 
+## Version
+
+### 1.0.0(20210722)
+
+First release version.
+
 ## Configuration
 
 ### Global settings
 
-${ALOG_HOME}/env/alog.env
+***${ALOG_HOME}/env/alog.env*** must be loaded before any use of alog interfaces or command tools.
 
 ```shell
 #######           MANDATORY CONFIGURATIONS                   #######
@@ -50,7 +68,7 @@ export ALOG_SHMKEY=1234
 
 ### Log settings
 
-${ALOG_HOME}/cfg/alog.cfg
+***${ALOG_HOME}/cfg/alog.cfg***contains configurations of registries , there should be at least one registry define.
 
 ```shell
 # ALOG config file
@@ -88,40 +106,46 @@ ${ALOG_HOME}/cfg/alog.cfg
 [TEST0][LOGINF][1][0111111][${ALOG_HOME}/log][%R.%C.log][%R.%C.log.%Y%M%D%h%m%s][1]
 ```
 
-## Compiling
+## How to build 
 
 ```shell
-# there are 2 special compiling mode:
-# for debug version which prints all debug information to stdout , use:
+# 1. add following line to you makefile
+-I ${ALOG_HOME}/include -L ${ALOG_HOME}/lib -lalog
+# 2. for debug version which prints all debug information to stdout , use:
 cd ${ALOG_HOME}/src & make clean debug all
-# normally you should just use:
+# 3. normally you should just use:
 cd ${ALOG_HOME}/src & make clean all
+# 4. you will get two executive file in ${ALOG_HOME}/bin 
+#    alogtest  : for local test
+#    alogcmd   : ALOG command line tool for init|reload|print|close share memory
+# 5. you will get one static library in ${ALOG_HOME}/lib
+#    libalog.a : contains implementations of all ALOG interfaces
 ```
 
+## How to use
 
-## Usage
+In you program , you can simply call `alog_initContext()` to initialize alog context , normally initialization should be done by caller explicitly , although alog will be self-initialized when `alog_wirte_t` is first called in case that context is missing. 
 
+After initialization , just call `alog_write_t()`or those macros predefined in `alog.h` to generate log message as you want. 
 
-1. include "alog.h" in your source file
-2. call `alog_initContext` before anything else
-3. call `alog_write_t` to write whatever you want
-4. call `alog_close` before process quit
-5. add `-I ${ALOG_HOME}/include` when compiling
-6. add `-L ${ALOG_HOME}/lib -lalog` when linking
+It is recomended that `alog_close()`is called before program exit to ensure that all log messages in buffer is flushed to files on disk. ALOG guarantees that `alog_close`is called before exit() by calling atexit(alog_close) in alog_initContext() , but don't always relay on that. 
 
-## Running
+## How to handle share memory
 
 
-1. call `. alog.env` to load environment
-2. use `alogcmd init` to initialize share memory
-3. use `alogcmd reload` to refresh environments and logging configs
-4. use `alogcmd print` to show configs
-5. use `alogcmd close` to destroy share memory
+1. call `. alog.env` to load environment.
+2. use `alogcmd init` to initialize share memory.
+3. use `alogcmd reload` to refresh environments and logging configs.
+4. use `alogcmd print` to show configs.
+5. use `alogcmd setlevel REG LEV` to change log level of certain registry in real time.
+6. use `alogcmd close` to destroy share memory.
 
-## Data Structure
+## Glimpse of implementation
+
+### Data structure
 
 ![alog_data_structure](docs/alog_data_structure.png)
 
-## Thread Logic
+### Thread Logic
 
 ![thread_logic](docs/thread_logic.png)

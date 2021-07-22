@@ -70,7 +70,7 @@ void alogcmd_help()
     printf("\033[0;31mNAME\033[0;39m\n");
     printf("    alogcmd  --  alog module command line tool\n");
     printf("\033[0;31mVERSION\033[0;39m\n");
-    printf("    %s\n" , ALOG_VERSION);
+    printf("    %d.%d.%d(%s)\n" , ALOG_VERSION_MAJOR,ALOG_VERSION_MINOR,ALOG_VERSION_PATCH,ALOG_RELEASE_TIME);
     printf("\033[0;31mSYNOPSIS\033[0;39m\n");
     printf("    alogcmd [init|reload|close|print|setlevel]\n");
     printf("\033[0;31mREQUIREMENTS\033[0;39m\n");
