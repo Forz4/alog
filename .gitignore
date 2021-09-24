@@ -1,0 +1,9 @@
+.gitignore
+bin
+lib
+*.log
+*.o
+*.tmp
+*.tar
+cfg/alog.cfg
+env/alog.env

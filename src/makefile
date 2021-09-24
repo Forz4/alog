@@ -19,7 +19,7 @@ init_dir:
 
 clean:
 	$(RM) *.o
-	$(RM) $(BINPATH)/alogtest $(BINPATH)/alogcmd $(LIBPATH)/libalog.a
+	$(RM) $(BINPATH)/alogtest $(BINPATH)/alogcmd $(LIBPATH)/libalog.a*
 	$(ECHO) "" > $(TEMPFLAG)
 
 debug:
