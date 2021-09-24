@@ -10,7 +10,7 @@ char    *message;
 char    REGNAME[20+1] = "TEST0";
 int     MODE = 1;
 char    logfilepath[ALOG_FILEPATH_LEN];
-
+extern  char *ALOG_TRACEID;
 void print_help()
 {
     printf("alogtest [-r regname][-p direct_log_path][-c count][-i interval][-l length][-t thread number][-A|H|B][-h]\n");
@@ -78,6 +78,10 @@ int main(int argc , char *argv[])
     if ( alog_initContext() ) {
         exit(0);
     }
+
+    //ALOG_TRACEID = (char *)malloc(8*sizeof(char));
+    //strcpy( ALOG_TRACEID , "TRACEID");
+
     ALOG_INFASC( REGNAME , "parent" , "" , logfilepath , "parent start");
     
     int pid = fork();
@@ -113,6 +117,7 @@ int main(int argc , char *argv[])
         pthread_join( tids[i] ,  NULL );
     }
     free(message);
+    //free(ALOG_TRACEID);
 
     alog_close();
     return 0;

@@ -11,7 +11,11 @@ AR = @ar -ruc
 RM = @-rm -f
 ECHO = @echo
 
-all:  libalog.a alogtest alogcmd
+all:  init_dir libalog.a alogtest alogcmd
+
+init_dir:
+	@[ -e $(BINPATH) ] || mkdir $(BINPATH)
+	@[ -e $(LIBPATH) ] || mkdir $(LIBPATH)
 
 clean:
 	$(RM) *.o

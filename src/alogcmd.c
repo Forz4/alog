@@ -210,7 +210,7 @@ int alogcmd_close()
         return -1;
     }
     if ( buf.shm_nattch > 0 ){
-        printf("there are [%d] process stil attached to share memory , continue to close ? (y/n)\n" , buf.shm_nattch);
+        printf("there are [%d] process stil attached to share memory , continue to close ? (y/n)\n" , (int)buf.shm_nattch);
         char ch = getchar();
         if ( ch == 'n' ){
             return 0;

@@ -7,7 +7,7 @@ alog_context_t      *g_alog_ctx;
 
 /* interfaces */
 int alog_initContext();
-int alog_close();
+void alog_close();
 int alog_writelog_t ( 
         int             logtype,
         enum alog_level level,

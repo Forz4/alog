@@ -8,7 +8,8 @@ int log_init()
 }
 int log_end()
 {
-    return alog_close();
+    alog_close();
+    return 0;
 }
 void log_detach()
 {

@@ -1,6 +1,7 @@
 #include "alog.h"
 #include "alogfun.h"
 #include "alogtypes.h"
+char *ALOG_TRACEID;
 /**
  * [alog_initContext Initialize context]
  * @return [0 for success]
@@ -107,9 +108,9 @@ int alog_initContext()
  * [alog_close close and destroy context]
  * @return [0 for success]
  */
-int alog_close()
+void alog_close()
 {
-    if ( g_alog_ctx == NULL )   return 0;
+    if ( g_alog_ctx == NULL )   return;
     /**
      * set close flag
      */
@@ -140,14 +141,14 @@ int alog_close()
     /**
      * clean up resources
      */
-    pthread_mutex_destroy(&(g_alog_ctx->mutex));
+    //pthread_mutex_destroy(&(g_alog_ctx->mutex));
     pthread_cond_destroy(&(g_alog_ctx->cond_persist));
     free(g_alog_ctx->l_shm);
     free(g_alog_ctx);
 
     g_alog_ctx = NULL;
     
-    return 0;
+    return;
 }
 /**
  * [alog_writelog_t  main interface for logging]
@@ -254,6 +255,11 @@ int alog_writelog_t (
      */
     gettimeofday( &tv , NULL );
 
+
+    /* traceid */
+    if ( ALOG_TRACEID ){
+        offset += sprintf( temp+offset , "[%-64s]" , ALOG_TRACEID );
+    }
     /**
      * date
      */
@@ -278,7 +284,7 @@ int alog_writelog_t (
      * micro second
      */
     if ( regCfg->format[2] == '1' ){
-        offset += sprintf( temp+offset ,"[%06d]" , tv.tv_usec );
+        offset += sprintf( temp+offset ,"[%06d]" , (int)tv.tv_usec );
     }
     /**
      * pid+tid
