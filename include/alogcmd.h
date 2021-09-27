@@ -15,8 +15,6 @@ const char alog_level_string[8][7]={
     "LOGDBG"
 };
 
-char            *ENV_ALOG_HOME;
-char            *ENV_ALOG_SHMKEY; 
 void            alogcmd_help();
 int             alogcmd_load(char *type);
 int             alogcmd_print();

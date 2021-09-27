@@ -13,7 +13,6 @@ int alog_initContext()
      */
     alog_cleanContext();
 
-    char            *ENV_SHMKEY = NULL;
     key_t           shmkey;
     int             shmid = 0;
     alog_shm_t      *g_shm = NULL;
@@ -21,15 +20,19 @@ int alog_initContext()
     /**
      * get and load share memory
      */
-    ENV_SHMKEY = getenv("ALOG_SHMKEY");
-    shmkey = atoi(ENV_SHMKEY);
-    if ( ( shmid = shmget( shmkey , sizeof(alog_shm_t) , 0) ) < 0 ){
-        ALOG_DEBUG("shmget fail , shmkey[%s] , shmid[%d] , errmsg[%s]!" , ENV_SHMKEY , shmid  , strerror(errno));
-        return ALOGERR_SHMGET_FAIL;
-    } 
-    if ( (g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 ))  == NULL ){
-        ALOG_DEBUG("shmat fail , shmkey[%s] , shmid[%d]! , errmsg[%s]" , ENV_SHMKEY , shmid  , strerror(errno));
-        return ALOGERR_SHMAT_FAIL;
+    ENV_ALOG_SHMKEY = getenv("ALOG_SHMKEY");
+    if ( ENV_ALOG_SHMKEY != NULL ){
+        shmkey = atoi(ENV_ALOG_SHMKEY);
+        if ( ( shmid = shmget( shmkey , sizeof(alog_shm_t) , 0) ) < 0 ){
+            ALOG_DEBUG("shmget fail , shmkey[%s] , shmid[%d] , errmsg[%s]!" , ENV_ALOG_SHMKEY , shmid  , strerror(errno));
+            return ALOGERR_SHMGET_FAIL;
+        } 
+        if ( (g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 ))  == NULL ){
+            ALOG_DEBUG("shmat fail , shmkey[%s] , shmid[%d]! , errmsg[%s]" , ENV_ALOG_SHMKEY , shmid  , strerror(errno));
+            return ALOGERR_SHMAT_FAIL;
+        }
+    } else {
+        ALOG_DEBUG("in noshm mode");
     }
     
     /**
@@ -77,8 +80,34 @@ int alog_initContext()
     /**
      * copy share memory to local memory
      */
-    ctx->g_shm = g_shm;
-    memcpy( g_alog_ctx->l_shm , g_shm , sizeof(alog_shm_t) );
+    if ( ENV_ALOG_SHMKEY != NULL ){
+        ctx->g_shm = g_shm;
+        memcpy( g_alog_ctx->l_shm , g_shm , sizeof(alog_shm_t) );
+    } else {
+        /**
+         * load config from file
+         */
+        char filepath[ALOG_FILEPATH_LEN];
+        ENV_ALOG_HOME = getenv("ALOG_HOME");
+        if ( ENV_ALOG_HOME != NULL ){
+            sprintf( filepath , "%s/cfg/alog.cfg" , ENV_ALOG_HOME);
+        } else {
+            sprintf( filepath , "%s/alog/cfg/alog.cfg" , getenv("HOME"));
+        }
+        g_alog_ctx->l_shm = alog_loadCfg( filepath );
+        if ( g_alog_ctx->l_shm == NULL ){
+            printf("fail to load config from %s\n" , filepath);
+            return -1;
+        }
+        /**
+         * get config file mtime
+         */
+        g_alog_ctx->l_shm->updTime = alog_getFileMtime(filepath);
+        if ( g_alog_ctx->l_shm->updTime  < 0 ){
+            printf("fail to stat config file %s\n" , filepath);
+            return -1;
+        }
+    }
 
     ctx->bufferNum = 0;
     memset(ctx->buffers , 0x00 , sizeof(ctx->buffers));

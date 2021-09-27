@@ -48,6 +48,9 @@
 #define ALOG_CURFILEFORMAT          1
 #define ALOG_BAKFILEFORMAT          2
 
+char            *ENV_ALOG_HOME;
+char            *ENV_ALOG_SHMKEY; 
+
 /* log level */
 enum alog_level{
     LOGNON = 1,
