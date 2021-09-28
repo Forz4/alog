@@ -328,7 +328,7 @@ void *alog_update_thread(void *arg)
                 /**
                  * check and update updTime
                  */
-                if ( g_alog_ctx->l_shm->updTime != g_alog_ctx->g_shm->updTime ){
+                if ( g_alog_ctx->g_shm > 0 && g_alog_ctx->l_shm->updTime != g_alog_ctx->g_shm->updTime ){
                     ALOG_DEBUG("share memory was updated , sync config , updTime[%ld]" , g_alog_ctx->g_shm->updTime);
                     memcpy( g_alog_ctx->l_shm , g_alog_ctx->g_shm , sizeof( alog_shm_t) ) ;
                 }
