@@ -170,8 +170,8 @@ void alog_close()
     /**
      * clean up resources
      */
-    //pthread_mutex_destroy(&(g_alog_ctx->mutex));
-    pthread_cond_destroy(&(g_alog_ctx->cond_persist));
+    pthread_mutex_destroy(&(g_alog_ctx->mutex));
+    //pthread_cond_destroy(&(g_alog_ctx->cond_persist));
     free(g_alog_ctx->l_shm);
     free(g_alog_ctx);
 

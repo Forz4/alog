@@ -22,6 +22,6 @@ alog_shm_t      *alog_loadCfg( char *filepath );
 void            alog_cleanContext();
 void            alog_atfork_prepare();
 void            alog_atfork_after();
-time_t 			alog_getFileMtime(char *filepath);
+time_t          alog_getFileMtime(char *filepath);
 #endif
 
