@@ -19,7 +19,7 @@ alog_regCfg_t *getRegByName(alog_shm_t *shm , char *regname)
     return NULL;
 }
 /**
- * [getBufferByName    Get buffer by regname+cstname+logfilepath]
+ * [getBufferByName    Get buffer by regname+cstname+logfilepath , should be called after alog_lock]
  * @param  regname     [input regname]
  * @param  cstname     [input cstname]
  * @param  logfilepath [input logfilepath]
@@ -335,7 +335,7 @@ void *alog_update_thread(void *arg)
             }
         }
         alog_unlock();
-        usleep( g_alog_ctx->l_shm->checkInterval * 100);
+        usleep( g_alog_ctx->l_shm->checkInterval * 1000);
     }
     return NULL;
 }
@@ -370,6 +370,7 @@ void *alog_persist_thread(void *arg)
     sigfillset(&sigset);
     pthread_sigmask(SIG_BLOCK , &sigset , NULL);
 
+    alog_lock();
     /**
      * get buffer by regname+cstname+logfilepath
      */
@@ -378,6 +379,8 @@ void *alog_persist_thread(void *arg)
         ALOG_DEBUG("fail to get buffer");
         return NULL;
     }
+    alog_unlock();
+
     alog_bufNode_t      *node = NULL;
     struct timespec     abstime;
     struct timeval      timeval;
