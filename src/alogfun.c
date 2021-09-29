@@ -316,15 +316,8 @@ void *alog_update_thread(void *arg)
             /**
              * if share memory key not exists , give up updating
              */
-            if ( (shmid = shmget( g_alog_ctx->l_shm->shmKey , sizeof(alog_shm_t) , 0 )) > 0 ){
-                /**
-                 * if shmid changes , it means share memory was recreated ,
-                 * then reattach to share memory
-                 */
-                if ( shmid != g_alog_ctx->l_shm->shmId ){
-                    ALOG_DEBUG("shmid changes , reattach to share memory");
-                    g_alog_ctx->g_shm = (alog_shm_t *)shmat( shmid , NULL , 0 );
-                }
+            shmid = shmget( g_alog_ctx->l_shm->shmKey , sizeof(alog_shm_t) , 0 );
+            if ( shmid > 0 && shmid != g_alog_ctx->l_shm->shmId ){
                 /**
                  * check and update updTime
                  */
@@ -868,9 +861,12 @@ void alog_cleanContext()
         }
     }
     pthread_mutex_destroy(&(g_alog_ctx->mutex));
-    pthread_cond_destroy(&(g_alog_ctx->cond_persist));
+    //pthread_cond_destroy(&(g_alog_ctx->cond_persist));
     free(g_alog_ctx->l_shm);
     free(g_alog_ctx);
+
+    g_alog_ctx = NULL;
+    
     return ;
 }
 /**
@@ -878,15 +874,28 @@ void alog_cleanContext()
  */
 void alog_atfork_prepare()
 {
-    alog_lock();
+    if ( g_alog_ctx )
+        alog_lock();
     return;
 }
 /**
  * [alog_atfork_after unlock mutex after fork returns both in parent or child]
  */
-void alog_atfork_after()
+void alog_atfork_after_parent()
 {
-    alog_unlock();
+    if ( g_alog_ctx )
+        alog_unlock();
+    return;
+}
+/**
+ * [alog_atfork_after unlock mutex after fork returns both in parent or child]
+ */
+void alog_atfork_after_child()
+{
+    if ( g_alog_ctx ){
+        alog_unlock();
+        alog_cleanContext();
+    }
     return;
 }
 /**

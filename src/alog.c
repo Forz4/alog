@@ -129,7 +129,7 @@ int alog_initContext()
     /**
      * register atfork , ensure that mutex status is normal after fork
      */
-    pthread_atfork( alog_atfork_prepare , alog_atfork_after , alog_atfork_after );
+    pthread_atfork( alog_atfork_prepare , alog_atfork_after_parent , alog_atfork_after_child );
 
     return 0;
 }
