@@ -874,28 +874,15 @@ void alog_cleanContext()
  */
 void alog_atfork_prepare()
 {
-    if ( g_alog_ctx )
-        alog_lock();
+    alog_lock();
     return;
 }
 /**
  * [alog_atfork_after unlock mutex after fork returns both in parent or child]
  */
-void alog_atfork_after_parent()
+void alog_atfork_after()
 {
-    if ( g_alog_ctx )
-        alog_unlock();
-    return;
-}
-/**
- * [alog_atfork_after unlock mutex after fork returns both in parent or child]
- */
-void alog_atfork_after_child()
-{
-    if ( g_alog_ctx ){
-        alog_unlock();
-        alog_cleanContext();
-    }
+    alog_unlock();
     return;
 }
 /**
