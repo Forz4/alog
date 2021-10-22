@@ -227,6 +227,8 @@ int alog_writelog_t (
     int             j = 0 ;
     unsigned char   ch = ' ';
     struct          timeval  tv;
+    sigset_t        n_sigset;
+    sigset_t        o_sigset;
 
     /**
      * get config for current regname in local memory
@@ -240,6 +242,17 @@ int alog_writelog_t (
      */
     if ( level > regCfg->level )
         return ALOGOK;
+
+    /**
+     * block signal
+     */
+    sigemptyset(&n_sigset);    
+    sigemptyset(&o_sigset);
+    sigaddset( &n_sigset , SIGCHLD );
+    sigaddset( &n_sigset , SIGALRM );
+    sigaddset( &n_sigset , SIGTERM );
+    sigaddset( &n_sigset , SIGUSR1 );
+    pthread_sigmask(SIG_BLOCK , &n_sigset , &o_sigset);
 
     /**
      * lock mutex
@@ -263,6 +276,7 @@ int alog_writelog_t (
     alog_buffer_t   *buffer = NULL;
     if( ( buffer = getBufferByName( regname , realcstname , logfilepath )) == NULL ){
         alog_unlock();
+        pthread_sigmask(SIG_SETMASK , &o_sigset , NULL);
         return ALOGMSG_BUF_NOTFOUND;
     }
 
@@ -274,6 +288,7 @@ int alog_writelog_t (
     char        *temp = (char *)malloc(max);
     if ( temp == NULL ){
         alog_unlock();
+        pthread_sigmask(SIG_SETMASK , &o_sigset , NULL);
         return ALOGERR_MALLOC_FAIL;
     }
     int         leftsize = 0 ;
@@ -428,6 +443,7 @@ offset += snprintf( temp+offset , max - offset , "------------------------------
     if ( offset > g_alog_ctx->l_shm->singleBlockSize*1024 ){
         alog_unlock();
         free(temp);
+        pthread_sigmask(SIG_SETMASK , &o_sigset , NULL);
         return ALOGERR_MALLOC_FAIL;
     }
 
@@ -448,6 +464,7 @@ offset += snprintf( temp+offset , max - offset , "------------------------------
                 ALOG_DEBUG("memory use over limit , can not create new nodes");
                 alog_unlock();
                 free(temp);
+                pthread_sigmask(SIG_SETMASK , &o_sigset , NULL);
                 return ALOGERR_MEMORY_FULL;
             } else {
                 ALOG_DEBUG("start to add new node");
@@ -456,6 +473,7 @@ offset += snprintf( temp+offset , max - offset , "------------------------------
                 if ( tempnode == NULL){
                     alog_unlock();
                     free(temp);
+                    pthread_sigmask(SIG_SETMASK , &o_sigset , NULL);
                     return ALOGERR_MALLOC_FAIL;
                 }
                 /* append new node to chain */
@@ -464,6 +482,7 @@ offset += snprintf( temp+offset , max - offset , "------------------------------
                     free(tempnode);
                     alog_unlock();
                     free(temp);
+                    pthread_sigmask(SIG_SETMASK , &o_sigset , NULL);
                     return ALOGERR_MALLOC_FAIL;
                 }
                 tempnode->next = node->next;
@@ -498,6 +517,7 @@ offset += snprintf( temp+offset , max - offset , "------------------------------
 
     alog_unlock();
     free(temp);
+    pthread_sigmask(SIG_SETMASK , &o_sigset , NULL);
     return ALOGOK;
 }
 
