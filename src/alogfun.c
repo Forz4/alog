@@ -528,8 +528,9 @@ void alog_backupLog( alog_regCfg_t *cfg , char *regname , char *cstname , char *
     memset(command , 0x00 , sizeof(command));
     getFileNameFromFormat( ALOG_CURFILEFORMAT , cfg , regname , cstname , logbasepath , filePath);
     getFileNameFromFormat( ALOG_BAKFILEFORMAT , cfg , regname , cstname , logbasepath , bak_filePath);
-    sprintf( command , "mv %s %s" , filePath , bak_filePath);
-    system( command );
+    rename(filePath,bak_filePath);
+    //sprintf( command , "mv %s %s" , filePath , bak_filePath);
+    //system( command );
     return ;
 }
 /**
