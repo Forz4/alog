@@ -43,7 +43,7 @@
 #define ALOG_FILEPATH_LEN           300
 #define ALOG_CFGBUF_LEN             100
 #define ALOG_COMMAND_LEN            600
-#define ALOG_REG_NUM                20
+#define ALOG_REG_NUM                30
 #define ALOG_BUFFER_NUM             20
 #define ALOG_CURFILEFORMAT          1
 #define ALOG_BAKFILEFORMAT          2
