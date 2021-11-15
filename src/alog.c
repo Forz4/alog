@@ -301,8 +301,8 @@ int alog_writelog_t (
 
 
     /* traceid */
-    if ( ALOG_TRACEID ){
-        offset += sprintf( temp+offset , "[%-64s]" , ALOG_TRACEID );
+    if ( strcmp( regname , "TRACE" ) && ALOG_TRACEID ){
+        offset += sprintf( temp+offset , "[%s]" , ALOG_TRACEID );
     }
     /**
      * date
