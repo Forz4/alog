@@ -390,9 +390,15 @@ int alog_writelog_t (
     /* apppend read log message based on logtype */
     switch ( logtype ){
         case ALOG_TYPE_ASC:
-            offset += snprintf( temp+offset , max - offset , "[");
+            if ( strcmp( regname , "TRACE" ) != 0  ){
+                offset += snprintf( temp+offset , max - offset , "[");
+            }
             offset += vsnprintf( temp+offset , max - offset - 2, fmt , ap );
-            offset += snprintf( temp+offset , max - offset , "]\n");
+            if ( strcmp( regname , "TRACE" ) != 0 ){
+                offset += snprintf( temp+offset , max - offset , "]\n");
+            } else {
+                offset += snprintf( temp+offset , max - offset , "\n");
+            }
             va_end(ap);
             break;
         case ALOG_TYPE_HEX:
