@@ -129,7 +129,7 @@ int alog_initContext()
     /**
      * register atfork , ensure that mutex status is normal after fork
      */
-    pthread_atfork( alog_atfork_prepare , alog_atfork_after , alog_atfork_after );
+    pthread_atfork( NULL , NULL , alog_atfork_after_child );
 
     return 0;
 }
@@ -157,9 +157,13 @@ void alog_close()
      */
     int i = 0;
     for ( i = 0 ; i < g_alog_ctx->bufferNum ; i ++ ){
-        pthread_join(g_alog_ctx->buffers[i].consTid, NULL);
+        if ( g_alog_ctx->buffers[i].consTid > 0 ){
+            pthread_join(g_alog_ctx->buffers[i].consTid, NULL);
+        }
     }
-    pthread_join(g_alog_ctx->updTid, NULL);
+    if ( g_alog_ctx->updTid > 0 ){
+        pthread_join(g_alog_ctx->updTid, NULL);
+    }
     ALOG_DEBUG("in SYNC MODE all threads joined");
 
     /**

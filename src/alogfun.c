@@ -499,7 +499,11 @@ int alog_persist( char *regname , char *cstname , char *logbasepath , alog_bufNo
     getFileNameFromFormat( ALOG_CURFILEFORMAT , cfg , regname , cstname , logbasepath , filePath);
 
     FILE *fp = fopen( filePath , "a+");
-    fwrite(node->content , node->offset , 1 , fp);
+    if ( fp == NULL){
+        ALOG_DEBUG("open file fail");
+    } else {
+        fwrite(node->content , node->offset , 1 , fp);
+    }
 
     /**
      * judge if file size over limit
@@ -871,19 +875,11 @@ void alog_cleanContext()
     return ;
 }
 /**
- * [alog_atfork_prepare lock mutex before fork is called]
+ * [alog_atfork_after unlock mutex after fork returns both in child]
  */
-void alog_atfork_prepare()
+void alog_atfork_after_child()
 {
-    alog_lock();
-    return;
-}
-/**
- * [alog_atfork_after unlock mutex after fork returns both in parent or child]
- */
-void alog_atfork_after()
-{
-    alog_unlock();
+    alog_cleanContext();
     return;
 }
 /**
