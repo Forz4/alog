@@ -38,7 +38,7 @@
 #define ALOG_TYPE_HEX               3
 /* macro */
 #define ALOG_REGNAME_LEN            20
-#define ALOG_CSTNAME_LEN            20
+#define ALOG_CSTNAME_LEN            50
 #define ALOG_FORMAT_LEN             7
 #define ALOG_FILEPATH_LEN           300
 #define ALOG_CFGBUF_LEN             100

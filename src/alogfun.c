@@ -51,40 +51,6 @@ alog_buffer_t *getBufferByName( char *regname , char *cstname , char *logfilepat
                     continue;
                 }
             }
-            /**
-             * if regname+cstname+logfilepath locates a buffer , then 
-             * judge if persist thread exist , especially in the case of fork situation
-             * because after fork , children process only get buffer memory but no 
-             * persist thread.
-             */
-            if ( pthread_kill(g_alog_ctx->buffers[i].consTid,0) ){
-                ALOG_DEBUG("buffer exist but persist thread lost , then empty current buffer");
-                alog_bufNode_t  *temp;
-                alog_bufNode_t  *node;
-                node = g_alog_ctx->buffers[i].prodPtr;;
-                int j = 0;
-                for( j = 0 ; j < g_alog_ctx->buffers[i].nodeNum ; j ++ ){
-                    temp = node->next;
-                    free(node->content);
-                    free(node);
-                    node = temp;
-                }
-                ALOG_DEBUG("delete current buffer by set regname and cstname to 0x00 ");
-                memset( g_alog_ctx->buffers[i].regName , 0x0 , ALOG_REGNAME_LEN + 1 );
-                memset( g_alog_ctx->buffers[i].cstName , 0x0 , ALOG_CSTNAME_LEN + 1 );
-                /**
-                 * check if update thread exists
-                 */
-                if ( pthread_kill(g_alog_ctx->updTid,0) ){
-                    ALOG_DEBUG("update thread lost , start to recreate update thread");
-                    pthread_create(&(g_alog_ctx->updTid), NULL, alog_update_thread, NULL );
-                }
-                /**
-                 * break out for loop
-                 */
-                break;
-            }
-
             return &(g_alog_ctx->buffers[i]);
         }
     }
@@ -346,8 +312,8 @@ void *alog_persist_thread(void *arg)
     ALOG_DEBUG("arg->regname[%s]" , myarg->regName);
     ALOG_DEBUG("arg->cstname[%s]" , myarg->cstName);
 
-    char                myregname[20+1];
-    char                mycstname[20+1];
+    char                myregname[ALOG_REGNAME_LEN+1];
+    char                mycstname[ALOG_CSTNAME_LEN+1];
     char                mylogbasepath[ALOG_FILEPATH_LEN+1]; 
     memset( myregname , 0x00 , sizeof(myregname));
     memset( mycstname , 0x00 , sizeof(mycstname));
